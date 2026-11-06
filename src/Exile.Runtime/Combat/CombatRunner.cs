@@ -1,6 +1,7 @@
 using DQQ.Components.Stages.Actors.Characters;
 using DQQ.Components.Stages.Maps;
 using DQQ.DTOs;
+using DQQ.Entities;
 using DQQ.Enums;
 using DQQ.Helper;
 using DQQ.Pools;
@@ -19,11 +20,16 @@ namespace Exile.Runtime.Combat;
 /// </summary>
 public sealed class CombatRunner
 {
-    public static async Task<CombatEnd> RunAsync(CharacterDTO character, EnumMapNumber mapNumber, bool watch,
+    /// <summary>用角色快照开一场新战斗（新种子）。</summary>
+    public static Task<CombatEnd> RunAsync(CharacterDTO character, EnumMapNumber mapNumber, bool watch,
+        Func<CombatBegin, Task> onBegin, Func<CombatFrame, Task>? onFrame, CancellationToken ct)
+        => RunAsync(character.NewCombatReplayForPlay(mapNumber, 1), watch, onBegin, onFrame, ct);
+
+    /// <summary>按录像（种子 + 快照 + 指令序列）重新模拟一场战斗，结果与原战斗一致（D6）。</summary>
+    public static async Task<CombatEnd> RunAsync(CombatReplayEntity replay, bool watch,
         Func<CombatBegin, Task> onBegin, Func<CombatFrame, Task>? onFrame, CancellationToken ct)
     {
         var combatId = Guid.NewGuid().ToString("N");
-        var replay = character.NewCombatReplayForPlay(mapNumber, 1);
         using var request = replay.GetReplayRequestDTO()
             ?? throw new InvalidOperationException("无法从种子生成战斗请求。");
         request.RenderType = EnumCombatRenderType.OfflinePlay;
@@ -34,7 +40,7 @@ public sealed class CombatRunner
         request.CancellationToken = ct;
 
         var focusId = request.CreatorId?.ToString();
-        await onBegin(new CombatBegin(combatId, mapNumber.ToString(), watch ? "watch" : "background", DQQ.Consts.DQQGeneral.TickPerSecond, focusId));
+        await onBegin(new CombatBegin(combatId, request.MapNumber.ToString(), watch ? "watch" : "background", DQQ.Consts.DQQGeneral.TickPerSecond, focusId));
 
         var frames = 0; long totalBytes = 0; var maxBytes = 0; var lastTick = 0;
         var gcBefore = GC.GetTotalPauseDuration();

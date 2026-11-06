@@ -20,7 +20,13 @@ try {
     $env:WOW_USER = 'exile'
     $env:WOW_PASS = 'exile'
     if ($settings.dqq.testCharacter) { $env:WOW_CHAR = $settings.dqq.testCharacter }
-    if (-not $env:EXILE_AUTOCOMBAT) { $env:EXILE_AUTOCOMBAT = '1' }
+    # D27：进入世界为自由模式。聊天框输入 .replay 进入战斗回放。
+    # 无人值守测试：dev.local.json 的 dqq.autoReplay=true 时，进入世界 10 秒后自动走一遍回放流程。
+    if ($settings.dqq.autoReplay) { $env:EXILE_AUTOCOMBAT = '1' } else { Remove-Item Env:EXILE_AUTOCOMBAT -ErrorAction SilentlyContinue }
+    # 诊断探针（开发版客户端）：dev.local.json 的 probe.key / probe.lua → WOW_PROBE_KEY / WOW_PROBE_LUA。
+    foreach ($n in 'WOW_PROBE_KEY','WOW_PROBE_LUA') { Remove-Item "Env:$n" -ErrorAction SilentlyContinue }
+    if ($settings.probe.key) { $env:WOW_PROBE_KEY = $settings.probe.key }
+    if ($settings.probe.lua) { $env:WOW_PROBE_LUA = $settings.probe.lua }
     $exe = Join-Path $RepoRoot 'client\target\play\benilla.exe'
     if (-not (Test-Path $exe)) { throw "找不到 $exe，请先运行 client-build。" }
     Set-Location (Join-Path $RepoRoot 'client')

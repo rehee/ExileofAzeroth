@@ -1,6 +1,8 @@
 using DQQ.Components.Stages.Actors.Characters;
 using DQQ.Repositories;
+using DQQ.Entities;
 using DQQ.Services.ActorServices;
+using DQQ.Services.ReplayServices;
 using DQQ.Web;
 using DQQ.Web.Enums;
 using DQQ.Web.Services.DQQAuthServices;
@@ -69,6 +71,20 @@ public sealed class DqqHost : IAsyncDisposable
     {
         var service = Services.GetRequiredService<ICharacterService>();
         return (await service.GetAllCharacterDTOs()).ToArray();
+    }
+
+    /// <summary>角色的战斗录像（IReplayService.AllReplay），新的在前。</summary>
+    public async Task<CombatReplayEntity[]> GetReplays(Guid? characterId)
+    {
+        var service = Services.GetRequiredService<IReplayService>();
+        return (await service.AllReplay(characterId, [])).OrderByDescending(r => r.PlayTime).ToArray();
+    }
+
+    /// <summary>取一场录像：指定 id，或角色最近一场。</summary>
+    public async Task<CombatReplayEntity?> GetReplay(Guid? replayId, Guid? characterId)
+    {
+        var service = Services.GetRequiredService<IReplayService>();
+        return replayId != null ? await service.FindReplay(replayId) : await service.FindRecentlyReplay(characterId);
     }
 
     public async ValueTask DisposeAsync()

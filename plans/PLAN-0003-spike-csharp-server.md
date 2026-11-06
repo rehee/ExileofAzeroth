@@ -87,6 +87,10 @@
 
 - 2026-11-06（Claude）：工作记录归档：新增 `docs/dev-workflow.md`（编译、运行、脚本、环境变量、首次运行、已知问题）。代码已推送（ExileofAzeroth 8e0471f、rehee/benilla dc2e4283）。**下一步（接手者从这里开始）**：E——最小 Lua 插件（客户端 `ClientCommand::AddonMessage` ↔ runtime `ui.*`，runtime → 插件用 `SessionEvent::Chat` 的插件消息）；F——写验证结论（建议 `docs/spike-results.md`）并拆出后续计划（藏身处、战斗表现、完整 UI、启动器、发布）。
 
+- 2026-11-06（Claude）：用户补充 D27–D29（自由模式 / 战斗回放模式 / 回放期间操作与镜头），已写入 architecture.md。实现：runtime 新增 `ui.replay.list`、`combat.replay`（IReplayService，按录像重放，无录像时开新战斗）；客户端进入世界为自由模式，聊天 `.replay`（临时入口）→ 锁操作 + 传送到战场加载画面 → 客户端 WorldportAck（加载完成）后请求回放，玩家本体扮演战斗创建者 → 结束清场、传回、加载完成后交还操作。用户澄清"读条"指加载画面的进度条而非炉石施法，相应改动已在工作区（16:56 另一会话所写，含 Windows 套接字错误 997/10035/10060 视为读超时的修复）。18:32 无人值守实测全流程通过、无断线。问题：战场与自由模式都在北郡，加载 0.0 s，进度条一闪而过——待用户决定战场位置。另：Windows 中文输入法会截走游戏按键（已记入 dev-workflow）。
+
+- 2026-11-06（Claude）：用户反馈三点并已修复验证：① 切换时加载画面至少 0.5 秒（`loading_screen.rs`，仅 Exile 模式；实测 0.5 s，加载结束后才开战）；② 自由模式不能移动/转视角、③ Esc 无菜单——根因是按键绑定属于账号数据，客户端等服务器的 `SMSG_ACCOUNT_DATA_MD5` 才加载，桥接未发；现进入世界时补发全空摘要，探针实测 W/ESC/BUTTON2 已绑定、按 W 角色前进。新增诊断探针配置（见 dev-workflow §4.1）。
+
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
   - `csp/`：C# .NET 8，经 hostfxr **在 Rust 显示进程内**运行；直接项目引用 `C:\code\dqq\DQQ`；`CombatRenderService` 逐 tick 快照、`CombatVisualAdapter` 表现事件、`NativeBridge` 原生接口（JSON）；`Csp.Browser` 网页版用 DQQ.Web.Component + IndexedDB，在线连 pogapi2；还有 `Csp.Launcher`。

@@ -57,11 +57,21 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 | `EXILE_RUNTIME` | `ws://127.0.0.1:7710/` | 客户端改由 runtime 驱动，不连 WoW 服务器 |
 | `WOW_USER` / `WOW_PASS` | `exile` / `exile` | benilla 的环境变量自动登录（不校验） |
 | `WOW_CHAR` | `config/dev.local.json` 的 `dqq.testCharacter` | 自动进入该角色 |
-| `EXILE_AUTOCOMBAT` | `1` | 进入世界 10 秒后自动开一场观看模式战斗（`Map_1_1`） |
+| `EXILE_AUTOCOMBAT` | `dev.local.json` 的 `dqq.autoReplay` 为 true 时设为 `1` | 无人值守测试：进入世界 10 秒后自动走一遍回放流程。默认关闭，进入世界为自由模式（D27） |
 
-流程：自动登录 → 领域 "Exile of Azeroth" → 选人（runtime 的 DQQ 角色）→ 进入北郡（地图 0，`(-8949.95, -132.49, 83.6)`）→ 战斗演出 → 结束 3 秒后清场。退出游戏（主菜单 → 退出游戏）时 runtime 随之退出（D26）。
+流程：自动登录 → 领域 "Exile of Azeroth" → 选人（runtime 的 DQQ 角色）→ 进入北郡（地图 0，`(-8949.95, -132.49, 83.6)`），自由模式。
+聊天框输入 `.replay`（临时入口，以后换插件界面）→ 锁住操作、传送到战场的加载画面 → 加载完成（客户端发 WorldportAck）后 runtime 回放该角色最近一场录像，玩家本体扮演战斗创建者 → 结束 3 秒后清场、传回原处、加载完成后交还操作。退出游戏（主菜单 → 退出游戏）时 runtime 随之退出（D26）。
 
 日志：客户端 `tools/logs/exile-play.log`（搜 `exile:`），runtime `tools/logs/runtime.log`。
+
+自由模式与战斗模式切换时，加载画面至少显示 0.5 秒（仅 Exile 模式，`loading_screen.rs`）。
+
+### 4.1 诊断探针（开发版客户端自带）
+
+`config/dev.local.json` 的 `probe.key` / `probe.lua` 由 `exile-play` 转成 `WOW_PROBE_KEY` / `WOW_PROBE_LUA`：
+- `WOW_PROBE_KEY="W@14:3"`：进入世界 14 秒时在客户端内部按住 W 3 秒（不经过操作系统和输入法）。
+- `WOW_PROBE_LUA="<Lua>"`：进入世界 10 秒时在界面 VM 里执行，可调用 `ProbeLog(text)` 写日志（搜 `probe-log:`）。
+- 打开探针时客户端会缩成右上角的置顶小窗；**用完清空 `probe`**，否则影响正常游玩。
 
 ## 5. 首次运行与客户端状态
 
@@ -78,9 +88,12 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 | 玩家本体未隐藏 | §5.1 要求战斗时隐藏非战斗角色，尚未做 |
 | 怪物多且挤 | `Map_1_1` 场上约 30+ 只螃蟹，3 码/单位偏小，比例待调 |
 | 表现缺失 | 施法特效、死亡表现、名字/血条、装备外观未做；1.12 默认界面不显示他人伤害数字 |
+| 键盘没反应 | Windows 中文输入法会截走游戏里的按键（WASD、回车、Esc 都会变成拼音候选）。玩游戏时切换到英文输入法 |
+| 按键/鼠标视角/Esc 全部无效（已解决） | 按键绑定属于"账号数据"，客户端要等服务器发来各段摘要（`SMSG_ACCOUNT_DATA_MD5`）才加载。桥接在进入世界时补发全空摘要（`exile.rs`），之后 W=MOVEFORWARD、Esc=TOGGLEGAMEMENU、右键=TURNORACTION 均生效 |
 | 节奏 | DQQ 自带节流在 Windows 上偏慢，runtime 用 `TickPacer` 自行控制（已解决） |
 
 ## 变更记录
 | 日期 | 修改人 | 说明 |
 |------|--------|------|
+| 2026-11-06 | Claude | 补充：加载画面最短 0.5 秒、诊断探针、按键绑定问题与修复 |
 | 2026-11-06 | Claude | 初稿 |

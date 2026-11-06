@@ -56,6 +56,16 @@ public sealed class MessageRouter
                 var req = msg.Data?.Deserialize<CombatStartRequest>(ProtocolJson.Options) ?? new CombatStartRequest(null, null, null);
                 StartCombat(conn, msg.Seq, req, ct);
                 break;
+            case "ui.replay.list":
+                var lr = msg.Data?.Deserialize<ReplayListRequest>(ProtocolJson.Options);
+                var replays = await dqq.GetReplays(Guid.TryParse(lr?.CharacterId, out var cid) ? cid : null);
+                await Send(conn, "ui.replay.list.result", msg.Seq, replays.Select(r => new ReplaySummary(
+                    r.Id.ToString(), r.PlayTime, r.Tick, r.CombatResult.ToString(), r.XP, r.TotalDamage)).ToArray(), ct);
+                break;
+            case "combat.replay":
+                var rr = msg.Data?.Deserialize<CombatReplayRequest>(ProtocolJson.Options) ?? new CombatReplayRequest(null, null, null);
+                StartReplay(conn, msg.Seq, rr, ct);
+                break;
             case "combat.stop":
                 combatCts?.Cancel();
                 break;
@@ -95,6 +105,45 @@ public sealed class MessageRouter
             catch (Exception e)
             {
                 Console.WriteLine($"[combat] 出错：{e}");
+                await Send(conn, "error", re, new ErrorData(e.Message), CancellationToken.None);
+            }
+        }, token);
+    }
+
+    /// <summary>回放一场录像（D28）；找不到录像时用该角色开一场新战斗，便于验证。</summary>
+    private void StartReplay(BridgeConnection conn, long re, CombatReplayRequest req, CancellationToken ct)
+    {
+        combatCts?.Cancel();
+        combatCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var token = combatCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var charId = Guid.TryParse(req.CharacterId, out var c) ? c : (Guid?)null;
+                var replay = await dqq.GetReplay(Guid.TryParse(req.ReplayId, out var r) ? r : null, charId);
+                var watch = req.Mode != "background";
+                Func<CombatBegin, Task> begin = b => Send(conn, "combat.begin", re, b, token);
+                Func<CombatFrame, Task>? frame = watch ? f => Send(conn, "combat.frame", null, f, token) : null;
+                CombatEnd end;
+                if (replay != null)
+                {
+                    Console.WriteLine($"[combat] 回放录像 {replay.Id}（{replay.PlayTime}，{replay.Tick} tick）");
+                    end = await CombatRunner.RunAsync(replay, watch, begin, frame, token);
+                }
+                else
+                {
+                    Console.WriteLine("[combat] 没有录像，改用角色开一场新战斗");
+                    var chars = await dqq.GetCharacters();
+                    var character = chars.FirstOrDefault(x => x.Id == charId) ?? chars.First();
+                    end = await CombatRunner.RunAsync(character, EnumMapNumber.Map_1_1, watch, begin, frame, token);
+                }
+                await Send(conn, "combat.end", re, end, token);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception e)
+            {
+                Console.WriteLine($"[combat] 回放出错：{e}");
                 await Send(conn, "error", re, new ErrorData(e.Message), CancellationToken.None);
             }
         }, token);
