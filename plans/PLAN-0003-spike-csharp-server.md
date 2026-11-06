@@ -85,6 +85,8 @@
 
 - 2026-11-06（Claude）：完成 D 的主体。客户端 `net/exile.rs`（rehee/benilla）把 runtime 消息合成为 `SessionEvent`，对上游只改 3 个文件 12 行。实测：自动登录→选人→进世界→10 秒后开战→英雄与螃蟹在北郡演出→战斗结束清场；客户端退出时 runtime 随之退出（D26）。首次运行需接受 EULA/TOS（用户授权 AI 点击），客户端状态写在仓库根 `benilla-config/`（已忽略），其中预设 `realmName`。剩余：E（Lua 插件双向消息）、F（结论）、若干表现细节（隐藏玩家本体、战场居中、施法特效、死亡、名字/血条、怪物数量与缩放）。
 
+- 2026-11-06（Claude）：工作记录归档：新增 `docs/dev-workflow.md`（编译、运行、脚本、环境变量、首次运行、已知问题）。代码已推送（ExileofAzeroth 8e0471f、rehee/benilla dc2e4283）。**下一步（接手者从这里开始）**：E——最小 Lua 插件（客户端 `ClientCommand::AddonMessage` ↔ runtime `ui.*`，runtime → 插件用 `SessionEvent::Chat` 的插件消息）；F——写验证结论（建议 `docs/spike-results.md`）并拆出后续计划（藏身处、战斗表现、完整 UI、启动器、发布）。
+
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
   - `csp/`：C# .NET 8，经 hostfxr **在 Rust 显示进程内**运行；直接项目引用 `C:\code\dqq\DQQ`；`CombatRenderService` 逐 tick 快照、`CombatVisualAdapter` 表现事件、`NativeBridge` 原生接口（JSON）；`Csp.Browser` 网页版用 DQQ.Web.Component + IndexedDB，在线连 pogapi2；还有 `Csp.Launcher`。
