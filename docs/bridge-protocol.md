@@ -46,6 +46,7 @@
 ### 3.1 ActorState（`actors[]`、`projects[]`）
 
 `{id, kind:"player"|"enemy"|"project", x, y, radius, angle, hp(0~1), life?, maxLife?, moving, name?, mob?, model, targetX?, targetY?}`
+`moving`：DQQ 的 `IsMoving`，与位移一致，可靠。客户端按 5 帧一段演出移动，整体延后 5 帧显示（architecture §5.2）。
 `angle`：DQQ 只给投射物设朝向，角色和怪物恒为 0。客户端据此推出朝向：移动时面向移动方向，站立时面向 `targetX/targetY`（DQQ 当前目标的战场坐标，没有目标时为空）。
 `model` 为外观关键字：`@HumanFemale`（人类女性 NPC 外观）或生物模型路径关键字（如 `Crab`、`Wolf`），客户端在 CreatureDisplayInfo 中解析为模型编号；也可直接给数字编号。
 坐标为 DQQ 战场坐标（double），客户端按 §5.2 换算成 WoW 坐标。
