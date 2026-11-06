@@ -73,7 +73,7 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 - `WOW_PROBE_LUA="<Lua>"`：进入世界 10 秒时在界面 VM 里执行，可调用 `ProbeLog(text)` 写日志（搜 `probe-log:`）。
 - 打开探针时客户端会缩成右上角的置顶小窗；**用完清空 `probe`**，否则影响正常游玩。
 
-`config/dev.local.json` 的可选 `rustLog` 由 `exile-play` 转成 `RUST_LOG`（客户端日志过滤），例如 `"info,benilla_app::blob_shadow=debug"`。回放期间桥接每秒记一行单位坐标（搜 `exile: frame`），战斗结束记移动/转向次数。
+`config/dev.local.json` 的可选 `rustLog` 由 `exile-play` 转成 `RUST_LOG`（客户端日志过滤），例如 `"info,benilla_app::blob_shadow=debug"`。可选 `env` 对象里的每一项会设成环境变量，例如 `"env": {"WOW_MOVE_TRACE": "C:\\code\\ExileofAzeroth\\tools\\logs\\move-trace.log"}` 会把本体的动画选择（`anim mode=… gait=…`）写进该文件：gait 0 站立、4 走、5 跑。回放期间桥接每秒记一行单位坐标（搜 `exile: frame`），战斗结束记移动/转向次数。
 
 ## 5. 首次运行与客户端状态
 

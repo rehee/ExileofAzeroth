@@ -97,6 +97,8 @@
 
 - 2026-11-06（Claude）：按用户规则改移动演出：5 帧一段（帧延后 5 帧显示，每段一条多点路径、按平均速度走完），段与段首尾相接，移动动画不重播；停下后才回到站立。实测一场回放发出的移动指令从约 5600 条降到约 1200 条。检查了日志：DQQ 的 `moving` 标志可靠（见 architecture §5.2）。
 
+- 2026-11-06（Claude）：缩放由 1 单位 3 码改为 2 码（用户试用）；移动改用跑步动画（战斗中行走速度 0.05，本体实测 gait=5 Run，播放速率约 0.12 倍——DQQ 单位每秒只走约 0.8 码，跑步动作会显得很慢）。
+
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
   - `csp/`：C# .NET 8，经 hostfxr **在 Rust 显示进程内**运行；直接项目引用 `C:\code\dqq\DQQ`；`CombatRenderService` 逐 tick 快照、`CombatVisualAdapter` 表现事件、`NativeBridge` 原生接口（JSON）；`Csp.Browser` 网页版用 DQQ.Web.Component + IndexedDB，在线连 pogapi2；还有 `Csp.Launcher`。

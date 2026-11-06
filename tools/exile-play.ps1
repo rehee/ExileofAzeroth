@@ -29,6 +29,8 @@ try {
     if ($settings.probe.lua) { $env:WOW_PROBE_LUA = $settings.probe.lua }
     # 可选：客户端日志过滤（RUST_LOG），如 "info,benilla_app::blob_shadow=debug"
     if ($settings.rustLog) { $env:RUST_LOG = $settings.rustLog }
+    # 可选：额外环境变量（诊断用），如 "env": { "WOW_MOVE_TRACE": "1" }
+    if ($settings.env) { foreach ($p in $settings.env.PSObject.Properties) { Set-Item -Path "Env:$($p.Name)" -Value "$($p.Value)" } }
     $exe = Join-Path $RepoRoot 'client\target\play\benilla.exe'
     if (-not (Test-Path $exe)) { throw "找不到 $exe，请先运行 client-build。" }
     Set-Location (Join-Path $RepoRoot 'client')
