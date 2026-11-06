@@ -10,6 +10,8 @@ public sealed class RuntimeOptions
     /// <summary>D26：客户端断开后 runtime 退出；--stay 时不退出（调试用）。</summary>
     public bool Stay { get; set; }
     public string? ConfigPath { get; set; }
+    /// <summary>录像文件目录（导出、导入）；--replays 指定，默认 runtime 旁的 replays/。</summary>
+    public string ReplaysDir { get; set; } = Path.Combine(AppContext.BaseDirectory, "replays");
     public string ApiBaseUrl { get; set; } = "https://pogapi2.idlepog.com/";
     public string? TestUser { get; set; }
     public string? TestPassword { get; set; }
@@ -25,6 +27,7 @@ public sealed class RuntimeOptions
                 case "--selftest": o.SelfTest = true; break;
                 case "--stay": o.Stay = true; break;
                 case "--config": o.ConfigPath = args[++i]; break;
+                case "--replays": o.ReplaysDir = args[++i]; break;
             }
         }
         o.ConfigPath ??= FindConfig();

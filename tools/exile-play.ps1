@@ -10,7 +10,7 @@ try {
     Invoke-Exile 'dotnet' @('build', $proj, '-c', 'Release', '--nologo', '-v', 'q')
     $runtimeExe = Join-Path $RepoRoot 'src\Exile.Runtime\bin\Release\net8.0\Exile.Runtime.exe'
     $runtimeLog = Join-Path $LogDir 'runtime.log'
-    $runtime = Start-Process -FilePath $runtimeExe -ArgumentList @('--port', $port, '--config', "`"$config`"") `
+    $runtime = Start-Process -FilePath $runtimeExe -ArgumentList @('--port', $port, '--config', "`"$config`"", '--replays', "`"$(Join-Path $RepoRoot 'replays')`"") `
         -RedirectStandardOutput $runtimeLog -RedirectStandardError (Join-Path $LogDir 'runtime.err.log') -PassThru -WindowStyle Hidden
     Write-ExileLog "runtime 已启动 pid=$($runtime.Id)"
 

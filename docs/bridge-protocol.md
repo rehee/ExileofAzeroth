@@ -84,7 +84,22 @@
 | 桥接 → 插件 | `replay.begin;<总数>` | 列表开始 |
 | 桥接 → 插件 | `replay;<id>;<说明>` | 一条录像（最多 10 条，新的在前）；说明如 `11-06 19:50  TimeOut  30s  XP 40  dmg 52` |
 | 桥接 → 插件 | `replay.end` | 列表结束 |
+| 插件 → 桥接 | `replay.export;<id>` | 把服务器上的这场录像导出成文件（runtime `ui.replay.export`），回 `exported;<文件名>` |
+| 插件 → 桥接 | `replay.files` | 列出录像文件（runtime `ui.replay.files`） |
+| 插件 → 桥接 | `replay.file;<文件名>` | 回放这个录像文件（`combat.replay` 带 `file`） |
+| 桥接 → 插件 | `file.begin;<总数>` / `file;<文件名>;<说明>` / `file.end` | 文件列表，格式同录像列表 |
+| 桥接 → 插件 | `exported;<文件名>` | 导出完成 |
 | 桥接 → 插件 | `error;<文字>` | 出错（runtime 的 `error`、回放进行中等） |
+
+说明文字以**创建战斗的角色名**和录像自己的名字（`Name`，有才显示）开头，例如 `1a  10-30 04:11  Clear  29 ticks  XP 160  dmg 11692`。角色名取自录像 `ReplayDetail` 的 `FriendDTOs` 中 Id 等于 `CreateActorId` 的 `DisplayName`。中文名在英文版客户端字体里显示为空白。
+
+### 5.1 录像文件
+
+- 格式与 DQQ 网页版的导出、导入相同：`CombatReplayEntity` 的 JSON 再 Base64，一行文本（DQQ `ExportReplay` / `PlayReplay`）。网页版导出的文件可以直接放进来回放，反之亦然。
+- 目录：仓库根的 `replays/`（`exile-play` 传 `--replays`；不进 git）。文件名 `dqq-replay-<录像 id 前 8 位>.txt`，同一场重复导出会覆盖。
+- 回放文件按种子重新模拟，不需要是当前账号的角色。runtime 只认目录里的文件名，不接受路径。
+- runtime 消息：`ui.replay.export {replayId}` → `ui.replay.export.result {file, path}`；`ui.replay.files` → `ui.replay.files.result [{file, id, playTime, ticks, result, experience, totalDamage, name, character}]`；`combat.replay` 新增可选 `file`。`ui.replay.list.result` 同样新增 `name`、`character`。
+- 实现：`src/Exile.Runtime/Replays/ReplayFiles.cs`。
 
 以后的界面（装备、技能等）沿用同一方式：插件发 `<verb>;…`，桥接对应到 runtime 的 `ui.*`。
 

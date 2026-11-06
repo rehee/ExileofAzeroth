@@ -32,9 +32,15 @@ public sealed record EquipSummary(string Item, string? Name);
 // ---- combat.* ----
 public sealed record CombatStartRequest(string? CharacterId, string? Map, string? Mode);
 public sealed record ReplayListRequest(string? CharacterId);
-public sealed record ReplaySummary(string Id, DateTime? PlayTime, int Ticks, string Result, long Experience, string? TotalDamage);
+public sealed record ReplaySummary(string Id, DateTime? PlayTime, int Ticks, string Result, long Experience, string? TotalDamage,
+    string? Name = null, string? Character = null);
 /// <summary>combat.replay：指定 replayId，或不指定时取该角色最近一场；没有录像时用角色开一场新战斗。</summary>
-public sealed record CombatReplayRequest(string? ReplayId, string? CharacterId, string? Mode);
+/// <summary>回放一场录像：<c>ReplayId</c>（服务器录像），或 <c>File</c>（录像文件，见 Replays/ReplayFiles）。</summary>
+public sealed record CombatReplayRequest(string? ReplayId, string? CharacterId, string? Mode, string? File = null);
+public sealed record ReplayExportRequest(string? ReplayId);
+public sealed record ReplayExportResult(string File, string Path);
+public sealed record ReplayFileSummary(string File, string Id, DateTime? PlayTime, int Ticks, string Result, long Experience, string? TotalDamage,
+    string? Name = null, string? Character = null);
 public sealed record CombatBegin(string CombatId, string Map, string Mode, int TickRate, string? FocusId);
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,

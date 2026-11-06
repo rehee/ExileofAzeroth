@@ -103,6 +103,8 @@
 
 - 2026-11-06（Claude）：完成 E。插件 `addons/ExileUI`（英文界面，enUS 字体没有中文字形）：右上角 Replays 按钮 → 录像列表 → 点一条回放；`/exile` 开关，`/exile ping` 测往返。消息走 WoW 插件消息（`SendAddonMessage` / `CHAT_MSG_ADDON`，前缀 `EXILE`，字段用 `;` 分隔），桥接翻译成 runtime 的 `ui.*` / `combat.replay`（协议见 bridge-protocol §5）。`exile-play` 启动前把 `addons/*` 复制到 `benilla-config/AddOns/`。踩坑：① 客户端在会话开始时锁住聊天显示，要等进入世界的初始化放开，桥接流程下一直没放开，所有聊天和插件消息都被压住——Exile 模式下不再上锁（`ui_chat/net.rs`，上游改动 +1 处）；② 插件消息要等发送者名字解析，桥接现在应答 `NameQuery`（自己的名字）。另：AI 的模拟鼠标点击点不中插件按钮，用户手点正常，原因未查。用户手动验收通过。
 
+- 2026-11-06（Claude）：用户追加需求：录像文件导出与导入回放（DQQ 网页版同格式，Base64 的 `CombatReplayEntity` JSON）。插件窗口分 Recent / Files 两栏：Recent 每条可 Export 到 `replays/dqq-replay-<id8>.txt`；Files 列出目录里的文件，点一条按文件回放。列表说明以角色名和录像名开头（取自录像里的 `FriendDTOs`）。实测：导出 88b608ed 成功并能解回；用户给的 c6bc687b（角色 "1a"，别人的角色）能列出并回放。注意：c6bc687b 原记录 29 tick 通关（Clear），重新模拟在约 30 tick 以 TimeOut 结束——这份录像是 10-30 的版本，很可能 DQQ 逻辑之后有改动导致重放不一致（文件里 `GameVersion` 为空，无法判断版本）；10-31 的 88b608ed 重放结果一致。部分代码由另一会话在 21:45 写好未提交，本次接手补上名字并测试。
+
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
   - `csp/`：C# .NET 8，经 hostfxr **在 Rust 显示进程内**运行；直接项目引用 `C:\code\dqq\DQQ`；`CombatRenderService` 逐 tick 快照、`CombatVisualAdapter` 表现事件、`NativeBridge` 原生接口（JSON）；`Csp.Browser` 网页版用 DQQ.Web.Component + IndexedDB，在线连 pogapi2；还有 `Csp.Launcher`。

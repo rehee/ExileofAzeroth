@@ -28,7 +28,8 @@ if (options.SelfTest) return await SelfTest.RunAsync(dqq);
 
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
-var router = new MessageRouter(dqq);
+var router = new MessageRouter(dqq, new Exile.Runtime.Replays.ReplayFiles(options.ReplaysDir));
+Console.WriteLine($"[runtime] 录像文件目录 {Path.GetFullPath(options.ReplaysDir)}");
 var active = 0; var everConnected = false;
 var server = new BridgeServer(options.Port, async conn =>
 {
@@ -121,7 +122,7 @@ static class SelfTest
     private static async Task<object> BridgeLoopback(DqqHost dqq)
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(40));
-        var router = new MessageRouter(dqq);
+        var router = new MessageRouter(dqq, new Exile.Runtime.Replays.ReplayFiles(Path.Combine(Path.GetTempPath(), "exile-selftest-replays")));
         var server = new BridgeServer(0, conn => router.ServeAsync(conn, cts.Token));
         server.Start();
         _ = server.RunAsync(cts.Token);

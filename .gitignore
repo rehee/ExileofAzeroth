@@ -23,3 +23,4 @@ tools/commit-message.txt
 # benilla 客户端的本地状态（CVar、宏、账号设置），不提交
 benilla-config/
 tools/commit-message-client.txt
+/replays/

@@ -3,6 +3,7 @@ using DQQ.Enums;
 using Exile.Runtime.Combat;
 using Exile.Runtime.Dqq;
 using Exile.Runtime.Protocol;
+using Exile.Runtime.Replays;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -15,10 +16,15 @@ namespace Exile.Runtime.Bridge;
 public sealed class MessageRouter
 {
     private readonly DqqHost dqq;
+    private readonly ReplayFiles files;
     private long seq;
     private CancellationTokenSource? combatCts;
 
-    public MessageRouter(DqqHost dqq) => this.dqq = dqq;
+    public MessageRouter(DqqHost dqq, ReplayFiles files)
+    {
+        this.dqq = dqq;
+        this.files = files;
+    }
 
     public async Task ServeAsync(BridgeConnection conn, CancellationToken ct)
     {
@@ -60,7 +66,21 @@ public sealed class MessageRouter
                 var lr = msg.Data?.Deserialize<ReplayListRequest>(ProtocolJson.Options);
                 var replays = await dqq.GetReplays(Guid.TryParse(lr?.CharacterId, out var cid) ? cid : null);
                 await Send(conn, "ui.replay.list.result", msg.Seq, replays.Select(r => new ReplaySummary(
-                    r.Id.ToString(), r.PlayTime, r.Tick, r.CombatResult.ToString(), r.XP, r.TotalDamage)).ToArray(), ct);
+                    r.Id.ToString(), r.PlayTime, r.Tick, r.CombatResult.ToString(), r.XP, r.TotalDamage,
+                    r.Name, ReplayFiles.CreatorName(r))).ToArray(), ct);
+                break;
+            case "ui.replay.export":
+                var er = msg.Data?.Deserialize<ReplayExportRequest>(ProtocolJson.Options);
+                var toExport = await dqq.GetReplay(Guid.TryParse(er?.ReplayId, out var eid) ? eid : null, null)
+                    ?? throw new InvalidOperationException("找不到这场录像。");
+                var path = await files.Export(toExport);
+                Console.WriteLine($"[replays] 导出 {path}");
+                await Send(conn, "ui.replay.export.result", msg.Seq, new ReplayExportResult(Path.GetFileName(path), path), ct);
+                break;
+            case "ui.replay.files":
+                await Send(conn, "ui.replay.files.result", msg.Seq, (await files.List()).Select(f => new ReplayFileSummary(
+                    f.File, f.Replay.Id.ToString(), f.Replay.PlayTime, f.Replay.Tick, f.Replay.CombatResult.ToString(),
+                    f.Replay.XP, f.Replay.TotalDamage, f.Replay.Name, ReplayFiles.CreatorName(f.Replay))).ToArray(), ct);
                 break;
             case "combat.replay":
                 var rr = msg.Data?.Deserialize<CombatReplayRequest>(ProtocolJson.Options) ?? new CombatReplayRequest(null, null, null);
@@ -121,14 +141,16 @@ public sealed class MessageRouter
             try
             {
                 var charId = Guid.TryParse(req.CharacterId, out var c) ? c : (Guid?)null;
-                var replay = await dqq.GetReplay(Guid.TryParse(req.ReplayId, out var r) ? r : null, charId);
+                var replay = !string.IsNullOrEmpty(req.File)
+                    ? await files.Load(req.File)
+                    : await dqq.GetReplay(Guid.TryParse(req.ReplayId, out var r) ? r : null, charId);
                 var watch = req.Mode != "background";
                 Func<CombatBegin, Task> begin = b => Send(conn, "combat.begin", re, b, token);
                 Func<CombatFrame, Task>? frame = watch ? f => Send(conn, "combat.frame", null, f, token) : null;
                 CombatEnd end;
                 if (replay != null)
                 {
-                    Console.WriteLine($"[combat] 回放录像 {replay.Id}（{replay.PlayTime}，{replay.Tick} tick）");
+                    Console.WriteLine($"[combat] 回放录像 {replay.Id}（{replay.PlayTime}，{replay.Tick} tick{(string.IsNullOrEmpty(req.File) ? "" : $"，文件 {req.File}")}）");
                     end = await CombatRunner.RunAsync(replay, watch, begin, frame, token);
                 }
                 else

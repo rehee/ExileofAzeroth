@@ -1,15 +1,20 @@
 -- Exile UI: the minimal addon of PLAN-0003 E. It talks to the Exile Runtime (DQQ) through the
 -- client bridge with addon messages, prefix "EXILE", fields split by ";" ("|" is the chat escape
--- character). See docs/bridge-protocol.md section 4.
---   addon -> bridge: ping;<x>  replay.list  replay.play;<id>
---   bridge -> addon: pong;<x>  replay.begin;<n>  replay;<id>;<label>  replay.end  error;<text>
+-- character). See docs/bridge-protocol.md section 5.
+--   addon -> bridge: ping;<x>  replay.list  replay.play;<id>  replay.export;<id>
+--                    replay.files  replay.file;<name>
+--   bridge -> addon: pong;<x>  replay.begin;<n>  replay;<id>;<label>  replay.end
+--                    file.begin;<n>  file;<name>;<label>  file.end  exported;<name>  error;<text>
+-- Two lists: "Recent" (the server's recordings, each can be exported to a file) and "Files" (the
+-- recording files in the replays folder, DQQ's export format, played from the file).
 -- Labels are English for now: the enUS client's fonts have no CJK glyphs.
 
 local PREFIX = "EXILE"
 local ROWS = 10
 local ROW_HEIGHT = 20
 
-local replays = {}
+local mode = "recent" -- or "files"
+local entries = {}
 local total = 0
 
 local function Send(msg)
@@ -34,10 +39,19 @@ local function Split(text)
   end
 end
 
--- The window: a title, a status line, up to ROWS recordings, Refresh and Close.
+local function MakeButton(name, parent, width, text, onClick)
+  local b = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
+  b:SetWidth(width)
+  b:SetHeight(22)
+  b:SetText(text)
+  b:SetScript("OnClick", onClick)
+  return b
+end
+
+-- The window: a title, Recent/Files tabs, a status line, up to ROWS entries, then the actions.
 local frame = CreateFrame("Frame", "ExileUIFrame", UIParent)
-frame:SetWidth(420)
-frame:SetHeight(110 + ROWS * ROW_HEIGHT)
+frame:SetWidth(460)
+frame:SetHeight(140 + ROWS * ROW_HEIGHT)
 frame:SetPoint("CENTER", UIParent, "CENTER", 0, 40)
 frame:SetBackdrop({
   bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -59,70 +73,103 @@ title:SetPoint("TOP", frame, "TOP", 0, -18)
 title:SetText("Combat Replays")
 
 local status = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-status:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -44)
+status:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -72)
 status:SetText("")
+
+local RequestList -- forward
+
+local recentTab = MakeButton("ExileUIRecentTab", frame, 100, "Recent", function()
+  mode = "recent"
+  RequestList()
+end)
+recentTab:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -42)
+local filesTab = MakeButton("ExileUIFilesTab", frame, 100, "Files", function()
+  mode = "files"
+  RequestList()
+end)
+filesTab:SetPoint("LEFT", recentTab, "RIGHT", 8, 0)
 
 local rows = {}
 for i = 1, ROWS do
-  local b = CreateFrame("Button", "ExileUIRow" .. i, frame, "UIPanelButtonTemplate")
-  b:SetWidth(372)
-  b:SetHeight(ROW_HEIGHT - 2)
-  b:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, -60 - (i - 1) * ROW_HEIGHT)
-  b:SetScript("OnClick", function()
-    local r = replays[this.index]
-    if r then
-      Print("playing " .. r.label)
-      frame:Hide()
-      Send("replay.play;" .. r.id)
+  local top = -88 - (i - 1) * ROW_HEIGHT
+  local play = CreateFrame("Button", "ExileUIRow" .. i, frame, "UIPanelButtonTemplate")
+  play:SetWidth(330)
+  play:SetHeight(ROW_HEIGHT - 2)
+  play:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, top)
+  play.index = i
+  play:SetScript("OnClick", function()
+    local e = entries[this.index]
+    if not e then return end
+    Print("playing " .. e.label)
+    frame:Hide()
+    if mode == "files" then
+      Send("replay.file;" .. e.key)
+    else
+      Send("replay.play;" .. e.key)
     end
   end)
-  b.index = i
-  b:Hide()
-  rows[i] = b
+  play:Hide()
+
+  local export = CreateFrame("Button", "ExileUIExport" .. i, frame, "UIPanelButtonTemplate")
+  export:SetWidth(70)
+  export:SetHeight(ROW_HEIGHT - 2)
+  export:SetPoint("LEFT", play, "RIGHT", 6, 0)
+  export:SetText("Export")
+  export.index = i
+  export:SetScript("OnClick", function()
+    local e = entries[this.index]
+    if not e then return end
+    status:SetText("Exporting...")
+    Send("replay.export;" .. e.key)
+  end)
+  export:Hide()
+
+  rows[i] = { play = play, export = export }
 end
 
 local function Refresh()
+  if mode == "files" then
+    recentTab:UnlockHighlight()
+    filesTab:LockHighlight()
+  else
+    filesTab:UnlockHighlight()
+    recentTab:LockHighlight()
+  end
   for i = 1, ROWS do
-    local r = replays[i]
-    if r then
-      rows[i]:SetText(r.label)
-      rows[i]:Show()
+    local e = entries[i]
+    if e then
+      rows[i].play:SetText(e.label)
+      rows[i].play:Show()
+      if mode == "recent" then rows[i].export:Show() else rows[i].export:Hide() end
     else
-      rows[i]:Hide()
+      rows[i].play:Hide()
+      rows[i].export:Hide()
     end
   end
 end
 
-local function RequestList()
-  replays = {}
+RequestList = function()
+  entries = {}
   Refresh()
   status:SetText("Loading...")
-  Send("replay.list")
+  if mode == "files" then
+    Send("replay.files")
+  else
+    Send("replay.list")
+  end
 end
 
-local refresh = CreateFrame("Button", "ExileUIRefresh", frame, "UIPanelButtonTemplate")
-refresh:SetWidth(90)
-refresh:SetHeight(22)
+local refresh = MakeButton("ExileUIRefresh", frame, 90, "Refresh", function() RequestList() end)
 refresh:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 24, 18)
-refresh:SetText("Refresh")
-refresh:SetScript("OnClick", RequestList)
 
-local latest = CreateFrame("Button", "ExileUILatest", frame, "UIPanelButtonTemplate")
-latest:SetWidth(120)
-latest:SetHeight(22)
-latest:SetPoint("BOTTOM", frame, "BOTTOM", 0, 18)
-latest:SetText("New / Latest")
-latest:SetScript("OnClick", function()
+local latest = MakeButton("ExileUILatest", frame, 120, "New / Latest", function()
   frame:Hide()
   Send("replay.play;")
 end)
+latest:SetPoint("BOTTOM", frame, "BOTTOM", 0, 18)
 
-local close = CreateFrame("Button", "ExileUIClose", frame, "UIPanelButtonTemplate")
-close:SetWidth(90)
-close:SetHeight(22)
+local close = MakeButton("ExileUIClose", frame, 90, "Close", function() frame:Hide() end)
 close:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -24, 18)
-close:SetText("Close")
-close:SetScript("OnClick", function() frame:Hide() end)
 
 local function Toggle()
   if frame:IsShown() then
@@ -134,13 +181,10 @@ local function Toggle()
 end
 
 -- A small button left of the minimap opens the window.
-local open = CreateFrame("Button", "ExileUIOpen", UIParent, "UIPanelButtonTemplate")
-open:SetWidth(100)
+local open = MakeButton("ExileUIOpen", UIParent, 100, "Replays", Toggle)
 open:SetHeight(24)
 open:SetFrameStrata("HIGH")
 open:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -200, -40)
-open:SetText("Replays")
-open:SetScript("OnClick", Toggle)
 
 SLASH_EXILE1 = "/exile"
 SlashCmdList["EXILE"] = function(msg)
@@ -163,18 +207,28 @@ events:SetScript("OnEvent", function()
   if verb == "pong" then
     Print("pong " .. (f[2] or "") .. " (round trip " ..
       string.format("%.0f", ((GetTime() or 0) - (tonumber(f[2]) or 0)) * 1000) .. " ms)")
-  elseif verb == "replay.begin" then
-    replays = {}
+  elseif verb == "replay.begin" or verb == "file.begin" then
+    entries = {}
     total = tonumber(f[2]) or 0
-  elseif verb == "replay" then
-    table.insert(replays, { id = f[2] or "", label = f[3] or "" })
+  elseif verb == "replay" or verb == "file" then
+    table.insert(entries, { key = f[2] or "", label = f[3] or "" })
   elseif verb == "replay.end" then
     if total == 0 then
       status:SetText("No recordings yet. \"New / Latest\" starts a new combat.")
     else
-      status:SetText(total .. " recordings, newest first. Click one to watch it.")
+      status:SetText(total .. " recordings, newest first. Click to watch, Export to save a file.")
     end
     Refresh()
+  elseif verb == "file.end" then
+    if total == 0 then
+      status:SetText("No replay files. Put dqq-replay-*.txt files in the replays folder.")
+    else
+      status:SetText(total .. " replay files, newest first. Click to watch.")
+    end
+    Refresh()
+  elseif verb == "exported" then
+    status:SetText("Exported " .. (f[2] or "") .. " to the replays folder.")
+    Print("exported " .. (f[2] or ""))
   elseif verb == "error" then
     status:SetText("Error: " .. (f[2] or ""))
     Print("error: " .. (f[2] or ""))

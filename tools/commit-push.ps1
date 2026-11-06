@@ -14,7 +14,10 @@ try {
     if (Test-Path $clientMsg) {
         Invoke-Exile 'git' @('-C', 'client', 'add', '-A')
         Invoke-Exile 'git' @('-C', 'client', 'status', '--short')
-        Invoke-Exile 'git' @('-C', 'client', 'commit', '-F', $clientMsg)
+        # 上次提交后推送失败时，重跑只需再推送：没有改动就不提交。
+        if (@(& git -C client status --porcelain).Count -gt 0) {
+            Invoke-Exile 'git' @('-C', 'client', 'commit', '-F', $clientMsg)
+        }
         Invoke-Exile 'git' @('-C', 'client', 'push', 'origin', 'HEAD:main')
         Remove-Item $clientMsg
     }

@@ -67,7 +67,7 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 自由模式与战斗模式切换时，加载画面至少显示 0.5 秒（仅 Exile 模式，`loading_screen.rs`）。
 
 ### 4.0 界面插件
-`addons/` 下的插件（目前只有 `ExileUI`）由 `exile-play` 在每次启动前复制到 `benilla-config\AddOns\`（开发版客户端的插件目录），改了插件只需重新运行 `exile-play`，不用重编客户端。进入世界后点右上角小地图左边的 **Replays** 按钮打开录像列表（或输入 `/exile`），点一条即回放；`/exile ping` 测试与桥接的往返。
+`addons/` 下的插件（目前只有 `ExileUI`）由 `exile-play` 在每次启动前复制到 `benilla-config\AddOns\`（开发版客户端的插件目录），改了插件只需重新运行 `exile-play`，不用重编客户端。进入世界后点右上角小地图左边的 **Replays** 按钮打开录像列表（或输入 `/exile`），点一条即回放；Recent 栏每条的 Export 把录像导出到仓库根 `replays\`，Files 栏列出 `replays\` 里的录像文件（包括从 DQQ 网页版下载的 `.txt`）并可回放；`/exile ping` 测试与桥接的往返。
 
 ### 4.1 诊断探针（开发版客户端自带）
 
