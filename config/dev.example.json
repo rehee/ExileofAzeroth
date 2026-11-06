@@ -1,0 +1,9 @@
+{
+  "_comment": "复制为 dev.local.json 并填写测试账号。dev.local.json 不提交。",
+  "dqq": {
+    "mode": "online",
+    "apiBaseUrl": "https://pogapi2.idlepog.com/",
+    "testUser": "<测试用户名>",
+    "testPassword": "<测试密码>"
+  }
+}

@@ -1,0 +1,19 @@
+# 本地配置与凭据（不要提交）
+*.local.json
+.env
+.env.*
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Rust
+target/
+
+# WoW 客户端资源（不分发暴雪资源）
+*.MPQ
+*.mpq
+tools/setup-dev.log
+tools/init-repo.log
