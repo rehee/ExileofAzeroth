@@ -7,7 +7,7 @@
 | 负责人 | Claude |
 | 创建日期 | 2026-11-06 |
 | 最后更新 | 2026-11-06 |
-| 完成度 | 40% |
+| 完成度 | 75% |
 | 关联设计 | docs/architecture.md（已定稿） |
 | 依赖计划 | PLAN-0002 |
 
@@ -55,10 +55,10 @@
   - `benilla-world` 是不带游戏的世界渲染库（地形、模型、光照）；`worldview` 是它的无服务器查看器。但角色/怪物外观、换装、名字板、FrameXML/Lua 插件、GlueXML 选人都在 `benilla-app` 里。原型（C:\wow_survival）基于 benilla-world，为显示单位自写了约 5600 行。
   - `benilla-app` 的网络层：读线程把服务器包转成 `benilla_protocol::SessionEvent`，经通道交给 `apply_net_updates` 生成实体；玩家操作以 `ClientCommand` 发出（`net.rs`、`net/io.rs`）。
   - **采用的做法**：沿用完整客户端 `benilla-app`，只替换会话来源——新增本项目 crate（桥接模块），从 runtime 的 WebSocket 收消息，**直接合成 `SessionEvent`**（登录成功、角色列表、进入世界、创建单位、移动、施法、伤害、插件消息），并把 `ClientCommand`（移动、插件消息等）转回 runtime。不实现 WoW 线路协议；客户端现有的模型、动画、名字板、Lua 插件、选人界面都能直接用，与艾泽拉斯之潮"完整客户端 + 插件"的形态一致。对 benilla 的改动只在会话启动处加一个可切换的钩子，代码集中在本项目自己的 crate。
-- [ ] 不连服务器启动，进入一块平地场景，第三人称镜头（D8）
-- [ ] 跳过登录，选人画面显示 runtime 发来的角色列表；默认人类女性，按职业/武器显示外观（D20，验证阶段武器可先固定）
-- [ ] 桥接模块连 WebSocket，按 `combat.frame` 渲染：生成英雄与螃蟹、位置插值、施法/攻击动画、伤害飘字、死亡
-- [ ] DQQ 坐标 ↔ WoW 坐标换算（§5.2，暂定 1 单位 ≈ 3 码），地面高度取自地形
+- [x] 不连服务器启动，进入北郡修道院门前，第三人称镜头（D8）
+- [x] 环境变量自动登录 → 领域 "Exile of Azeroth" → 角色列表来自 runtime（DQQ 角色，人类女性，职业按 `WowLook`）→ 自动进入世界（`WOW_CHAR`）。装备外观未做
+- [x] 桥接模块连 WebSocket，按 `combat.frame` 渲染：生成英雄与螃蟹（模型按关键字从 CreatureDisplayInfo 解析）、`MonsterMove` 平滑移动、`AttackerState` 挥砍、血量更新、战斗结束清场。施法特效、死亡表现未细做
+- [x] DQQ 坐标 → WoW 坐标（3 码/单位，原点为北郡出生点，高度交给客户端贴地）。待改：战场应以原点为中心（DQQ 坐标减 5）
 
 ### E. Lua 插件最小版本
 - [ ] 插件收到 runtime 的消息（如战斗结算）并显示
@@ -82,6 +82,8 @@
 - 2026-11-06（Claude）：检查环境：AI 能用的命令行是用户电脑上的 Linux 虚拟机（无网络、不是 Windows），云端环境的 GitHub 登录失效，因此无法直接安装 Windows 工具链或 fork。待用户选择：AI 通过屏幕操作完成，或用户手动执行。
 
 - 2026-11-06（Claude）：完成 A、B、C。风险 1 通过：DQQ.Web.Component 在普通 .NET 进程以在线模式工作（登录、角色列表、战斗），DQQ 零改动。发现 DQQ 自带节流在 Windows 上每 tick 约 45 ms（计时精度 15.6 ms），改由 runtime 的 TickPacer 控制节奏 + timeBeginPeriod(1)，实测 33.32 ms。WebSocket 回环延迟平均 0.67 ms、p99 5 ms。执行方式：AI 在资源管理器双击 `tools/run-*.cmd`，结果看 `tools/logs/`。下一步：D（benilla 客户端）。
+
+- 2026-11-06（Claude）：完成 D 的主体。客户端 `net/exile.rs`（rehee/benilla）把 runtime 消息合成为 `SessionEvent`，对上游只改 3 个文件 12 行。实测：自动登录→选人→进世界→10 秒后开战→英雄与螃蟹在北郡演出→战斗结束清场；客户端退出时 runtime 随之退出（D26）。首次运行需接受 EULA/TOS（用户授权 AI 点击），客户端状态写在仓库根 `benilla-config/`（已忽略），其中预设 `realmName`。剩余：E（Lua 插件双向消息）、F（结论）、若干表现细节（隐藏玩家本体、战场居中、施法特效、死亡、名字/血条、怪物数量与缩放）。
 
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。

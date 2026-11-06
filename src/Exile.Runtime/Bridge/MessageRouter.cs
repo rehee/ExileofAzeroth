@@ -103,7 +103,9 @@ public sealed class MessageRouter
     public static CharacterSummary Summarize(CharacterDTO c) => new(
         c.Id?.ToString() ?? "", c.DisplayName ?? "", Convert.ToInt32(c.Level), c.CombatArcheTypeNumber.ToString(),
         (c.Equips ?? []).Where(p => p.Value != null)
-            .ToDictionary(p => p.Key.ToString(), p => new EquipSummary(p.Value!.Profile?.ProfileNumber.ToString() ?? "", p.Value.Profile?.Name)));
+            .ToDictionary(p => p.Key.ToString(), p => new EquipSummary(p.Value!.Profile?.ProfileNumber.ToString() ?? "", p.Value.Profile?.Name)),
+        Visuals.WowLook.RaceHuman, Visuals.WowLook.WowClass(c.CombatArcheTypeNumber.ToString()),
+        Visuals.WowLook.GenderFemale, Visuals.WowLook.DisplayHumanFemale);
 
     private Task Send(BridgeConnection conn, string type, long? re, object? data, CancellationToken ct)
     {

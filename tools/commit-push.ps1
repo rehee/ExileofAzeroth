@@ -9,6 +9,15 @@ try {
     $ignored = & git check-ignore config/dev.local.json
     $ErrorActionPreference = $old
     if (-not $ignored) { throw 'config/dev.local.json 未被忽略，已中止。' }
+    # 先提交客户端子模块（rehee/benilla），再在本仓库记录新的子模块指向。
+    $clientMsg = Join-Path $PSScriptRoot 'commit-message-client.txt'
+    if (Test-Path $clientMsg) {
+        Invoke-Exile 'git' @('-C', 'client', 'add', '-A')
+        Invoke-Exile 'git' @('-C', 'client', 'status', '--short')
+        Invoke-Exile 'git' @('-C', 'client', 'commit', '-F', $clientMsg)
+        Invoke-Exile 'git' @('-C', 'client', 'push', 'origin', 'HEAD:main')
+        Remove-Item $clientMsg
+    }
     Invoke-Exile 'git' @('add', '-A')
     Invoke-Exile 'git' @('status', '--short')
     Invoke-Exile 'git' @('commit', '-F', $msgFile)

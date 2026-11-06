@@ -34,7 +34,7 @@
 |------|------|------|------|
 | R→C | `hello` | `{runtime, protocol}` | 连接建立后 runtime 先发 |
 | C→R | `ui.character.list` | — | 取角色列表（ICharacterService.GetAllCharacterDTOs） |
-| R→C | `ui.character.list.result` | `CharacterSummary[]` | `{id, name, level, archetype, equips{slot:{item,name}}, race:"Human", gender:"Female"}`（D20） |
+| R→C | `ui.character.list.result` | `CharacterSummary[]` | `{id, name, level, archetype, equips{slot:{item,name}}, wowRace, wowClass, wowGender, displayId}`（D20，对应表见 `Visuals/WowLook.cs`） |
 | C→R | `combat.start` | `{characterId?, map?, mode?}` | `map` 为 DQQ `EnumMapNumber` 名，默认 `Map_1_1`；`mode`：`watch`（默认，实时推帧）/ `background`（直接算完，只发 begin/end） |
 | R→C | `combat.begin` | `{combatId, map, mode, tickRate, focusId}` | `focusId` 为玩家英雄的 id |
 | R→C | `combat.frame` | `{combatId, tick, actors[], projects[], events[], sentAtMs}` | 每 tick 一帧，30/s |
@@ -45,7 +45,8 @@
 
 ### 3.1 ActorState（`actors[]`、`projects[]`）
 
-`{id, kind:"player"|"enemy"|"project", x, y, radius, angle, hp(0~1), life?, maxLife?, moving, name?, mob?}`
+`{id, kind:"player"|"enemy"|"project", x, y, radius, angle, hp(0~1), life?, maxLife?, moving, name?, mob?, model}`
+`model` 为外观关键字：`@HumanFemale`（人类女性 NPC 外观）或生物模型路径关键字（如 `Crab`、`Wolf`），客户端在 CreatureDisplayInfo 中解析为模型编号；也可直接给数字编号。
 坐标为 DQQ 战场坐标（double），客户端按 §5.2 换算成 WoW 坐标。
 
 ### 3.2 CombatEvent（`events[]`）

@@ -4,6 +4,7 @@
     "mode": "online",
     "apiBaseUrl": "https://pogapi2.idlepog.com/",
     "testUser": "<测试用户名>",
-    "testPassword": "<测试密码>"
+    "testPassword": "<测试密码>",
+    "testCharacter": "<进入世界时自动选择的角色名，可留空>"
   }
 }
