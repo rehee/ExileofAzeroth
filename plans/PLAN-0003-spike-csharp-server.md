@@ -99,6 +99,8 @@
 
 - 2026-11-06（Claude）：缩放由 1 单位 3 码改为 2 码（用户试用）；移动改用跑步动画（战斗中行走速度 0.05，本体实测 gait=5 Run，播放速率约 0.12 倍——DQQ 单位每秒只走约 0.8 码，跑步动作会显得很慢）。
 
+- 2026-11-06（Claude）：回放期间走/跑动作改为标准速度（`select.rs` 的 `scaled_rate` 在 `exile_spectating` 时返回 1），实测跑步 rate=1.00；自由模式不变。
+
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
   - `csp/`：C# .NET 8，经 hostfxr **在 Rust 显示进程内**运行；直接项目引用 `C:\code\dqq\DQQ`；`CombatRenderService` 逐 tick 快照、`CombatVisualAdapter` 表现事件、`NativeBridge` 原生接口（JSON）；`Csp.Browser` 网页版用 DQQ.Web.Component + IndexedDB，在线连 pogapi2；还有 `Csp.Launcher`。
