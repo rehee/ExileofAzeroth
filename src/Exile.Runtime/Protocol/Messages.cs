@@ -38,7 +38,8 @@ public sealed record CombatReplayRequest(string? ReplayId, string? CharacterId, 
 public sealed record CombatBegin(string CombatId, string Map, string Mode, int TickRate, string? FocusId);
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
-    double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model);
+    double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
+    double? TargetX = null, double? TargetY = null);
 public sealed record CombatEvent(string Id, int Tick, string Kind, string? From, string? Target,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
     string Element, double Amount, bool Critical, bool Killed, bool Success);

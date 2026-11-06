@@ -91,6 +91,8 @@
 
 - 2026-11-06（Claude）：用户反馈三点并已修复验证：① 切换时加载画面至少 0.5 秒（`loading_screen.rs`，仅 Exile 模式；实测 0.5 s，加载结束后才开战）；② 自由模式不能移动/转视角、③ Esc 无菜单——根因是按键绑定属于账号数据，客户端等服务器的 `SMSG_ACCOUNT_DATA_MD5` 才加载，桥接未发；现进入世界时补发全空摘要，探针实测 W/ESC/BUTTON2 已绑定、按 W 角色前进。新增诊断探针配置（见 dev-workflow §4.1）。
 
+- 2026-11-06（Claude）：用户反馈战斗演出四点并已修复：① 镜头——回放期间（`exile_spectating`）不再自动转回身后，右键拖动只转镜头、不转身体；② 单位悬空——桥接读取战场附近 ADT 地形，按地面高度放置；③ 没有移动——根因是 `MonsterMove` 的路径必须以起点开头，只给终点时客户端不装样条，单位不动；现发 `[起点, 终点]`。朝向：DQQ 角色/怪物的 `Angle` 恒为 0，改为移动时朝移动方向、站立时朝目标（协议 ActorState 新增 `targetX/targetY`）；④ 阴影——原版淡色阴影其实已投影但几乎看不见，Exile 模式改画半透明黑色圆盘。实测：一场 900 tick 回放发出约 5600 次移动、110 次转向；左键拖动镜头后保持不动。右键拖动 AI 无法模拟，待用户验证。dev.local.json 新增可选 `rustLog`（→ RUST_LOG）。
+
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
   - `csp/`：C# .NET 8，经 hostfxr **在 Rust 显示进程内**运行；直接项目引用 `C:\code\dqq\DQQ`；`CombatRenderService` 逐 tick 快照、`CombatVisualAdapter` 表现事件、`NativeBridge` 原生接口（JSON）；`Csp.Browser` 网页版用 DQQ.Web.Component + IndexedDB，在线连 pogapi2；还有 `Csp.Launcher`。

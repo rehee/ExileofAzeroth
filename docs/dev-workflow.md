@@ -73,6 +73,8 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 - `WOW_PROBE_LUA="<Lua>"`：进入世界 10 秒时在界面 VM 里执行，可调用 `ProbeLog(text)` 写日志（搜 `probe-log:`）。
 - 打开探针时客户端会缩成右上角的置顶小窗；**用完清空 `probe`**，否则影响正常游玩。
 
+`config/dev.local.json` 的可选 `rustLog` 由 `exile-play` 转成 `RUST_LOG`（客户端日志过滤），例如 `"info,benilla_app::blob_shadow=debug"`。回放期间桥接每秒记一行单位坐标（搜 `exile: frame`），战斗结束记移动/转向次数。
+
 ## 5. 首次运行与客户端状态
 
 - benilla 把状态写在 `benilla-config/`。因为客户端是子模块（`client/.git` 是文件），benilla 把它当成 git 工作树，状态目录落在**仓库根**的 `benilla-config/`（已忽略）。

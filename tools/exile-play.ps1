@@ -27,6 +27,8 @@ try {
     foreach ($n in 'WOW_PROBE_KEY','WOW_PROBE_LUA') { Remove-Item "Env:$n" -ErrorAction SilentlyContinue }
     if ($settings.probe.key) { $env:WOW_PROBE_KEY = $settings.probe.key }
     if ($settings.probe.lua) { $env:WOW_PROBE_LUA = $settings.probe.lua }
+    # 可选：客户端日志过滤（RUST_LOG），如 "info,benilla_app::blob_shadow=debug"
+    if ($settings.rustLog) { $env:RUST_LOG = $settings.rustLog }
     $exe = Join-Path $RepoRoot 'client\target\play\benilla.exe'
     if (-not (Test-Path $exe)) { throw "找不到 $exe，请先运行 client-build。" }
     Set-Location (Join-Path $RepoRoot 'client')

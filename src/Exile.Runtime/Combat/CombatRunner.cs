@@ -95,7 +95,8 @@ public sealed class CombatRunner
     private static ActorState ToActor(TickLogActor a, string kind) => new(
         a.Id?.ToString() ?? $"{kind}:{a.X:F2},{a.Y:F2}", kind, a.X, a.Y, a.Radius, a.Angle,
         a.PercentageHP, a.CurrentLife, a.MaxLife, a.IsMoving, a.DisplayName, a.MobNumber?.ToString(),
-        kind == "player" ? Visuals.WowLook.HeroModel : Visuals.WowLook.MobModel(a.MobNumber?.ToString()));
+        kind == "player" ? Visuals.WowLook.HeroModel : Visuals.WowLook.MobModel(a.MobNumber?.ToString()),
+        a.TargetX, a.TargetY);
 
     private static CombatEvent ToEvent(TickLogItem log, int tick)
     {
