@@ -31,6 +31,15 @@ try {
     if ($settings.rustLog) { $env:RUST_LOG = $settings.rustLog }
     # 可选：额外环境变量（诊断用），如 "env": { "WOW_MOVE_TRACE": "1" }
     if ($settings.env) { foreach ($p in $settings.env.PSObject.Properties) { Set-Item -Path "Env:$($p.Name)" -Value "$($p.Value)" } }
+    # 本项目的插件（addons\*）复制到客户端的插件目录。开发版客户端的状态目录是仓库根的 benilla-config\。
+    $addonsDest = Join-Path $RepoRoot 'benilla-config\AddOns'
+    Get-ChildItem -Path (Join-Path $RepoRoot 'addons') -Directory | ForEach-Object {
+        $target = Join-Path $addonsDest $_.Name
+        if (Test-Path $target) { Remove-Item -Recurse -Force $target }
+        New-Item -ItemType Directory -Force -Path $addonsDest | Out-Null
+        Copy-Item -Recurse -Path $_.FullName -Destination $target
+        Write-ExileLog "插件: $($_.Name) -> $target"
+    }
     $exe = Join-Path $RepoRoot 'client\target\play\benilla.exe'
     if (-not (Test-Path $exe)) { throw "找不到 $exe，请先运行 client-build。" }
     Set-Location (Join-Path $RepoRoot 'client')

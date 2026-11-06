@@ -67,7 +67,29 @@
 
 结论：WebSocket 传输满足要求，客户端先不加缓冲（D9）。
 
+## 5. 插件消息（Lua 插件 ↔ 桥接）
+
+界面插件不直接连 runtime：它用 WoW 1.12 自带的插件消息和客户端里的桥接对话，桥接再转成上面的 runtime 消息。
+
+- 插件 → 桥接：`SendAddonMessage("EXILE", "<verb>;<arg>;…", "PARTY")`。桥接从 `ClientCommand::AddonMessage` 收到。
+- 桥接 → 插件：桥接合成一条 `LANG_ADDON` 的聊天（发送者是玩家自己），客户端触发 `CHAT_MSG_ADDON`：`arg1` = `EXILE`，`arg2` = `<verb>;<arg>;…`。
+- 字段用 `;` 分隔（`|` 是聊天转义字符，不能用）；文本里的 `;`、`|` 换成空格。
+- 实现：客户端 `net/exile.rs`（`on_addon`、`addon_say`），插件 `addons/ExileUI/ExileUI.lua`。
+
+| 方向 | 消息 | 说明 |
+|------|------|------|
+| 插件 → 桥接 | `ping;<x>` | 往返测试，桥接直接回 `pong;<x>` |
+| 插件 → 桥接 | `replay.list` | 桥接发 runtime `ui.replay.list`（当前角色） |
+| 插件 → 桥接 | `replay.play;<id>` | 回放这场录像；`id` 为空表示最近一场（没有录像就开新战斗）。桥接走读条传送，加载完发 `combat.replay` |
+| 桥接 → 插件 | `replay.begin;<总数>` | 列表开始 |
+| 桥接 → 插件 | `replay;<id>;<说明>` | 一条录像（最多 10 条，新的在前）；说明如 `11-06 19:50  TimeOut  30s  XP 40  dmg 52` |
+| 桥接 → 插件 | `replay.end` | 列表结束 |
+| 桥接 → 插件 | `error;<文字>` | 出错（runtime 的 `error`、回放进行中等） |
+
+以后的界面（装备、技能等）沿用同一方式：插件发 `<verb>;…`，桥接对应到 runtime 的 `ui.*`。
+
 ## 变更记录
 | 日期 | 修改人 | 说明 |
 |------|--------|------|
 | 2026-11-06 | Claude | v1 草案，含首次实测 |
+| 2026-11-06 | Claude | 新增 §5 插件消息；ActorState 增 targetX/targetY |

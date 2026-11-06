@@ -1,0 +1,5 @@
+## Interface: 11200
+## Title: Exile UI
+## Notes: Exile of Azeroth: talks to the Exile Runtime (DQQ) through the client bridge.
+## Author: Exile of Azeroth
+ExileUI.lua

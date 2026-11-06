@@ -61,8 +61,8 @@
 - [x] DQQ 坐标 → WoW 坐标（3 码/单位，原点为北郡出生点，高度交给客户端贴地）。待改：战场应以原点为中心（DQQ 坐标减 5）
 
 ### E. Lua 插件最小版本
-- [ ] 插件收到 runtime 的消息（如战斗结算）并显示
-- [ ] 插件发一条请求给 runtime（如刷新角色列表）并收到回复
+- [x] 插件收到 runtime 的消息并显示（录像列表，2026-11-06）
+- [x] 插件发请求给 runtime 并收到回复（`replay.list` → `ui.replay.list` → 列表；`replay.play` → 回放）。用户手动验收通过
 
 ### F. 收尾
 - [ ] 写验证结论：两个风险的结果、遇到的问题、对架构文档需要的修订
@@ -100,6 +100,8 @@
 - 2026-11-06（Claude）：缩放由 1 单位 3 码改为 2 码（用户试用）；移动改用跑步动画（战斗中行走速度 0.05，本体实测 gait=5 Run，播放速率约 0.12 倍——DQQ 单位每秒只走约 0.8 码，跑步动作会显得很慢）。
 
 - 2026-11-06（Claude）：回放期间走/跑动作改为标准速度（`select.rs` 的 `scaled_rate` 在 `exile_spectating` 时返回 1），实测跑步 rate=1.00；自由模式不变。
+
+- 2026-11-06（Claude）：完成 E。插件 `addons/ExileUI`（英文界面，enUS 字体没有中文字形）：右上角 Replays 按钮 → 录像列表 → 点一条回放；`/exile` 开关，`/exile ping` 测往返。消息走 WoW 插件消息（`SendAddonMessage` / `CHAT_MSG_ADDON`，前缀 `EXILE`，字段用 `;` 分隔），桥接翻译成 runtime 的 `ui.*` / `combat.replay`（协议见 bridge-protocol §5）。`exile-play` 启动前把 `addons/*` 复制到 `benilla-config/AddOns/`。踩坑：① 客户端在会话开始时锁住聊天显示，要等进入世界的初始化放开，桥接流程下一直没放开，所有聊天和插件消息都被压住——Exile 模式下不再上锁（`ui_chat/net.rs`，上游改动 +1 处）；② 插件消息要等发送者名字解析，桥接现在应答 `NameQuery`（自己的名字）。另：AI 的模拟鼠标点击点不中插件按钮，用户手点正常，原因未查。用户手动验收通过。
 
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
