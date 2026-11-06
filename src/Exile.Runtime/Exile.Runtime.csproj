@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Exile Runtime：运行 DQQ 与全部业务逻辑，经本机 WebSocket 与客户端交换 JSON 消息（docs/architecture.md D1、D9）。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Exile.Runtime</RootNamespace>
+    <AssemblyName>Exile.Runtime</AssemblyName>
+    <!-- D9：后台 GC，减少暂停 -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <NoWarn>$(NoWarn);MSB3246;MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- D23：只引用 source/dqq/ 里的预编译 DLL -->
+    <DqqBin>$(MSBuildThisFileDirectory)..\..\source\dqq\</DqqBin>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="$(DqqBin)*.dll" Private="true" />
+    <None Include="$(DqqBin)**\*.resources.dll" Link="%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(DqqBin)runtimes\**\*" Link="runtimes\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+</Project>

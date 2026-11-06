@@ -17,3 +17,5 @@ target/
 *.mpq
 tools/setup-dev.log
 tools/init-repo.log
+tools/logs/
+tools/commit-message.txt
