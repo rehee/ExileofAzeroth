@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Exile.Runtime.Protocol;
 
 namespace Exile.Runtime.Visuals.Mapping;
@@ -29,6 +29,13 @@ public static class MappingFiles
         new Dictionary<string, (int, string)>();
     public static int ClassFallback { get; private set; } = 1;
 
+    /// <summary>英雄（DQQ 角色）的统一外观（不含装备），equipment.json 的 hero。</summary>
+    public static Dress HeroLook { get; private set; } = new(1, 1, 0, 0, 0, 0, []);
+    /// <summary>DQQ 装备槽名 → WoW 装备槽名（equipment.json 的 slots）。</summary>
+    public static IReadOnlyDictionary<string, string> EquipSlots { get; private set; } = new Dictionary<string, string>();
+    /// <summary>DQQ 物品名 → 外观（槽位由 DQQ 装备槽决定，这里只存外观、放法、武器种类）。</summary>
+    public static IReadOnlyDictionary<string, JsonElement> EquipItems { get; private set; } = new Dictionary<string, JsonElement>();
+
     /// <summary>最近一次读取的问题（文件缺失、JSON 错、引用了不存在的外观……）。</summary>
     public static IReadOnlyList<string> Errors { get; private set; } = [];
 
@@ -57,8 +64,9 @@ public static class MappingFiles
             var errors = new List<string>();
             LoadMobs(Path.Combine(Dir, "mobs.json"), errors);
             LoadClasses(Path.Combine(Dir, "classes.json"), errors);
+            LoadEquipment(Path.Combine(Dir, "equipment.json"), errors);
             Errors = errors;
-            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}" +
+            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}" +
                 (errors.Count == 0 ? "" : $"，{errors.Count} 个问题"));
             foreach (var e in errors) Console.WriteLine($"[mapping] 问题：{e}");
         }
@@ -138,6 +146,50 @@ public static class MappingFiles
         ClassFallback = root.TryGetProperty("fallback", out var f) && f.TryGetInt32(out var fv) ? fv : 1;
     }
 
+    private static void LoadEquipment(string path, List<string> errors)
+    {
+        using var doc = Read(path, errors);
+        if (doc == null) return;
+        var root = doc.RootElement;
+        if (root.TryGetProperty("hero", out var h) && ParseDress(h, "equipment.json hero", errors) is { } hero) HeroLook = hero;
+        var slots = new Dictionary<string, string>();
+        if (root.TryGetProperty("slots", out var ss) && ss.ValueKind == JsonValueKind.Object)
+            foreach (var p in ss.EnumerateObject())
+            {
+                if (!Enum.TryParse<DQQ.Enums.EnumEquipSlot>(p.Name, out _)) errors.Add($"equipment.json slots.{p.Name}：DQQ 没有这个装备槽（EnumEquipSlot）");
+                var to = p.Value.GetString() ?? "";
+                if (!Slots.ContainsKey(to)) { errors.Add($"equipment.json slots.{p.Name}：不认识的 WoW 装备槽 \"{to}\""); continue; }
+                slots[p.Name] = to;
+            }
+        var items = new Dictionary<string, JsonElement>();
+        if (root.TryGetProperty("items", out var its) && its.ValueKind == JsonValueKind.Object)
+            foreach (var it in its.EnumerateObject())
+            {
+                if (!Enum.TryParse<DQQ.Enums.EnumItem>(it.Name, out _)) errors.Add($"equipment.json items.{it.Name}：DQQ 没有这个物品（EnumItem），拼写？");
+                // 用 "mainHand" 试解析一次，只为检查写法；真正的槽位在穿上时由 DQQ 装备槽决定。
+                ParseItem("mainHand", it.Value, $"equipment.json items.{it.Name}", errors);
+                items[it.Name] = it.Value.Clone();
+            }
+        EquipSlots = slots;
+        EquipItems = items;
+    }
+
+    /// <summary>
+    /// 英雄穿上 DQQ 装备后的外观：<see cref="HeroLook"/> 加每件装备（DQQ 槽 → WoW 槽，DQQ 物品 → 外观）。
+    /// 表里没有的物品不显示，记一次缺失。
+    /// </summary>
+    public static Dress HeroDress(IEnumerable<(string Slot, string Item)> equips)
+    {
+        var items = new List<DressItem>();
+        foreach (var (slot, item) in equips)
+        {
+            if (!EquipSlots.TryGetValue(slot, out var wowSlot)) continue;  // 项链、戒指：不显示
+            if (!EquipItems.TryGetValue(item, out var look)) { MappingLog.Miss("EnumItem", item); continue; }
+            if (ParseItem(wowSlot, look, $"equipment.json items.{item}", []) is { } d) items.Add(d);
+        }
+        return HeroLook with { Items = items.ToArray() };
+    }
+
     // ---- 穿装备的人形 ----
 
     private static readonly Dictionary<string, int> Races = new(StringComparer.OrdinalIgnoreCase)
@@ -187,22 +239,28 @@ public static class MappingFiles
             foreach (var it in its.EnumerateObject())
             {
                 var at = $"{where}.items.{it.Name}";
-                if (!Slots.TryGetValue(it.Name, out var slot)) { errors.Add($"{at}：不认识的装备槽"); continue; }
-                int? display; var type = slot.Type; string? weapon = null;
-                if (it.Value.ValueKind == JsonValueKind.Number) display = it.Value.GetInt32();
-                else
-                {
-                    display = Int(it.Value, "display");
-                    if (Str(it.Value, "type") is { } t && !Types.TryGetValue(t, out type)) { errors.Add($"{at}.type：不认识 \"{t}\""); type = slot.Type; }
-                    weapon = Str(it.Value, "weapon");
-                }
-                if (display is not > 0) { errors.Add($"{at}：缺少外观 id（display）"); continue; }
-                var subclass = 0;
-                if (weapon != null && !Weapons.TryGetValue(weapon, out subclass)) errors.Add($"{at}.weapon：不认识 \"{weapon}\"");
-                var isWeapon = weapon != null || slot.Slot is 15 or 17 || (slot.Slot == 16 && type is not (14 or 23));
-                items.Add(new DressItem(slot.Slot, display.Value, type, isWeapon ? 2 : 4, subclass));
+                if (ParseItem(it.Name, it.Value, at, errors) is { } d) items.Add(d);
             }
         return new Dress(race, gender, Int(e, "skin") ?? 0, Int(e, "face") ?? 0, Int(e, "hair") ?? 0, Int(e, "hairColor") ?? 0, items.ToArray());
+    }
+
+    /// <summary>一件装备：WoW 槽名 + 外观（数字，或 {display, type, weapon}）。</summary>
+    private static DressItem? ParseItem(string slotName, JsonElement value, string at, List<string> errors)
+    {
+        if (!Slots.TryGetValue(slotName, out var slot)) { errors.Add($"{at}：不认识的装备槽 \"{slotName}\""); return null; }
+        int? display; var type = slot.Type; string? weapon = null;
+        if (value.ValueKind == JsonValueKind.Number) display = value.GetInt32();
+        else
+        {
+            display = Int(value, "display");
+            if (Str(value, "type") is { } t && !Types.TryGetValue(t, out type)) { errors.Add($"{at}.type：不认识 \"{t}\""); type = slot.Type; }
+            weapon = Str(value, "weapon");
+        }
+        if (display is not > 0) { errors.Add($"{at}：缺少外观 id（display）"); return null; }
+        var subclass = 0;
+        if (weapon != null && !Weapons.TryGetValue(weapon, out subclass)) errors.Add($"{at}.weapon：不认识 \"{weapon}\"");
+        var isWeapon = weapon != null || slot.Slot is 15 or 17 || (slot.Slot == 16 && type is not (14 or 23));
+        return new DressItem(slot.Slot, display.Value, type, isWeapon ? 2 : 4, subclass);
     }
 
     private static int? Int(JsonElement e, string name) =>

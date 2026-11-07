@@ -15,12 +15,14 @@
 - 位置：仓库的 `config/mapping/`，进 git。目前有两份：
   - `mobs.json`：DQQ 怪物（`EnumMob`）→ WoW 外观
   - `classes.json`：DQQ 战斗风格（`EnumCombatArcheType`）→ WoW 职业
+  - `equipment.json`：英雄的统一外观，DQQ 装备槽与物品（`EnumEquipSlot`、`EnumItem`）→ WoW 装备外观
   - 以后的技能、元素、地图等各加一份，格式同样写进本文档。
 - 谁读：Exile Runtime（C#，`src/Exile.Runtime/Visuals/Mapping/MappingFiles.cs`）。客户端（Rust）不认识 DQQ，只执行 runtime 发来的外观（display id、`dress`）。
 - 查找顺序：`--mapping <目录>` → 仓库里的 `config/mapping/`（从 runtime 所在目录往上找）→ runtime 旁的 `mapping/`（编译时自动复制过去，供以后的发布包使用）。
 - **改完保存即可，不用重新编译**：runtime 在下面这些时候检查文件有没有改过，改过就重读：
   - 游戏里输入 `.lineup mobs`（审阅怪物外观）
   - 开始一场回放或战斗（`combat.replay`、`combat.start`）
+  - 取角色列表（选人界面；`equipment.json` 的改动在下次进入世界时穿到英雄身上）
 - 出错时：保留上一次读好的表继续运行，问题写进 runtime 日志（`tools/logs/runtime.log`，搜 `[mapping]`）和 `run-mapping-report` 生成的报告。表里没有的项用回退值，并在日志里记一次 `没有对应项`。
 
 ## 2. 文件格式
@@ -99,6 +101,21 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 
 **weapon**（武器种类，可选，影响收刀位置等）：axe axe2h mace mace2h sword sword2h polearm staff dagger fist bow gun crossbow thrown wand。
 
+### 2.4 `equipment.json`
+
+```jsonc
+{
+  "hero": { "race": "human", "gender": "female", "skin": 0, "face": 0, "hair": 0, "hairColor": 0 },  // 写法同 2.3，不写 items
+  "slots": { "<EnumEquipSlot 名>": "<WoW 装备槽>" },   // 如 "Body": "chest"；项链、戒指不写 = 不显示
+  "items": {
+    "<EnumItem 名>": 29958,                                            // 只写外观
+    "<EnumItem 名>": { "display": 1628, "type": "twoHand", "weapon": "sword2h" }   // 或带放法、武器种类
+  }
+}
+```
+
+物品放到哪个 WoW 槽由 DQQ 角色把它装在哪个槽决定（`slots`），`items` 里只写外观、放法（type，不写就按槽默认）和武器种类（weapon）。表里没有的物品不显示，日志记一次缺失。英雄在自由模式和回放里都穿着它（回放里英雄就是玩家本体），选人界面的模型也穿着。
+
 ## 3. 怎么找 id
 
 1. **从游戏数据里查**：双击 `tools/run-wow-dbc.cmd`，把本机 WoW 的 DBC 导出到 `tools/logs/wow-dbc/`（不入库）：
@@ -122,3 +139,4 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 | 日期 | 修改人 | 说明 |
 |------|--------|------|
 | 2026-11-07 | Claude | 初稿：对应表改为配置文件（mobs、classes），含穿装备的人形 |
+| 2026-11-07 | Claude | 新增 equipment.json（英雄外观与装备，§2.4） |

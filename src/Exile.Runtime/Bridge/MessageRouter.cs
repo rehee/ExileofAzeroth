@@ -60,6 +60,7 @@ public sealed class MessageRouter
             case "hello":
                 break;
             case "ui.character.list":
+                Visuals.Mapping.MappingFiles.Refresh();
                 await Send(conn, "ui.character.list.result", msg.Seq, (await dqq.GetCharacters()).Select(Summarize).ToArray(), ct);
                 break;
             case "combat.start":
@@ -194,8 +195,12 @@ public sealed class MessageRouter
         c.Id?.ToString() ?? "", c.DisplayName ?? "", Convert.ToInt32(c.Level), c.CombatArcheTypeNumber.ToString(),
         (c.Equips ?? []).Where(p => p.Value != null)
             .ToDictionary(p => p.Key.ToString(), p => new EquipSummary(p.Value!.Profile?.ProfileNumber.ToString() ?? "", p.Value.Profile?.Name)),
-        Visuals.WowLook.RaceHuman, Visuals.WowLook.WowClass(c.CombatArcheTypeNumber.ToString()),
-        Visuals.WowLook.GenderFemale, Visuals.WowLook.DisplayHumanFemale);
+        Visuals.Mapping.MappingFiles.HeroLook.Race, Visuals.WowLook.WowClass(c.CombatArcheTypeNumber.ToString()),
+        Visuals.Mapping.MappingFiles.HeroLook.Gender, Visuals.WowLook.DisplayHumanFemale,
+        // 英雄的统一外观穿上 DQQ 装备（config/mapping/equipment.json）：客户端用在自由模式与回放里的本体上。
+        Visuals.Mapping.MappingFiles.HeroDress((c.Equips ?? [])
+            .Where(p => p.Value?.Profile != null)
+            .Select(p => (p.Key.ToString(), p.Value!.Profile!.ProfileNumber.ToString()))));
 
     private Task Send(BridgeConnection conn, string type, long? re, object? data, CancellationToken ct)
     {

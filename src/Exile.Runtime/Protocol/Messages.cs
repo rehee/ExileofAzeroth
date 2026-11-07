@@ -26,7 +26,7 @@ public static class ProtocolJson
 
 // ---- ui.* ----
 public sealed record CharacterSummary(string Id, string Name, int Level, string Archetype,
-    Dictionary<string, EquipSummary> Equips, int WowRace, int WowClass, int WowGender, int DisplayId);
+    Dictionary<string, EquipSummary> Equips, int WowRace, int WowClass, int WowGender, int DisplayId, Dress? Dress = null);
 public sealed record EquipSummary(string Item, string? Name);
 
 // ---- combat.* ----

@@ -1,0 +1,81 @@
+// DQQ 角色外观与装备 → WoW（PLAN-0006 C）。字段说明见 docs/mapping-config.md §2.4。
+// 改完保存即可：下次进入世界（选人）或开始回放时生效。
+{
+  // 所有 DQQ 角色统一一套外观（用户 2026-11-07，D20）：人类女性，长相固定。
+  "hero": { "race": "human", "gender": "female", "skin": 0, "face": 0, "hair": 0, "hairColor": 0 },
+
+  // DQQ 装备槽（EnumEquipSlot）→ WoW 装备槽；项链、戒指不显示，不写。
+  "slots": {
+    "Head": "head", "Body": "chest", "Gloves": "hands", "Boots": "feet",
+    "MainHand": "mainHand", "OffHand": "offHand", "Belt": "waist"
+  },
+
+  // DQQ 物品（EnumItem 名）→ WoW 装备外观（ItemDisplayInfo id）。写法同 mobs.json 的 items：
+  // 数字 = 只写外观；对象 = { display, type, weapon }。没写的物品不显示（日志记一次缺失）。
+  "items": {
+    // ---- 护甲：板甲 = 勇气套（战士 T0），皮甲 = 暗影套（盗贼 T0），鳞甲 = 野兽追猎者套（猎人 T0）；外观 id 已对 Wowhead 核对 ----
+    "PlateArmor": 29958,   "PlateHelmet": 31284,   "PlateGlove": 29962,   "PlateBoot": 29960,
+    "LeatherArmor": 15607, "LeatherHelmet": 16056, "LeatherGlove": 19909, "LeatherBoot": 28162,
+    "ScaleArmour": 31402,  "ScaleHelmet": 31410,   "ScaleGlove": 31406,   "ScaleBoot": 31408,
+    "LeatherBelt": 14853,
+
+    // ---- 单手剑 ----
+    "CopperSword":           { "display": 1542, "weapon": "sword" },  // Sword_1H_Short_A_02（锈铜色短剑）
+    "GoldenBlade":           { "display": 3735, "weapon": "sword" },  // Sword_1H_Long_B_02Gold
+    "CapriciousSpiritblade": { "display": 3234, "weapon": "sword" },  // Sword_1H_Katana_B_01Green
+    "ChainBlade":            { "display": 1664, "weapon": "sword" },  // Sword_1H_Sabre_B_03Black
+    // ---- 爪 ----
+    "NailedFist":     { "display": 3007, "weapon": "fist" },  // Hand_1H_Knuckle_B_01（指虎）
+    "SharktoothClaw": { "display": 3787, "weapon": "fist" },  // Hand_1H_Claw_A_01Silver
+    "Awl":            { "display": 4901, "weapon": "fist" },  // Hand_1H_Claw_B_01
+    // ---- 匕首 ----
+    "GlassShank":    { "display": 2711, "weapon": "dagger" },  // Knife_1H_Dagger_B_02White
+    "SkinningKnife": { "display": 2698, "weapon": "dagger" },  // Knife_1H_Hunting_A_01
+    "Sai":           { "display": 2732, "weapon": "dagger" },  // Knife_1H_Exotic_A_01Gold
+    // ---- 法杖（短杖）----
+    "DriftwoodWand": { "display": 5720,  "weapon": "wand" },  // Wand_1H_Standard_A_02Light
+    "CrystalWand":   { "display": 22836, "weapon": "wand" },  // Wand_1H_Horde_A_03White
+    "ProphecyWand":  { "display": 23455, "weapon": "wand" },  // Wand_1H_Jeweled_B_02Red
+    // ---- 单手斧 ----
+    "RustedHatchet": { "display": 1382, "weapon": "axe" },  // Axe_1H_Hatchet_A_02Rusty
+    "WristChopper":  { "display": 1389, "weapon": "axe" },  // Axe_1H_Hatchet_B_02Black
+    "WarAxe":        { "display": 1455, "weapon": "axe" },  // Axe_1H_Hatchet_C_01Black
+    // ---- 单手锤 ----
+    "DriftwoodClub": { "display": 1115, "weapon": "mace" },  // Club_1H_Spiked_A_01（木棒）
+    "PetrifiedClub": { "display": 1839, "weapon": "mace" },  // Mace_1H_Spiked_A_02Gray
+    "RockBreaker":   { "display": 1159, "weapon": "mace" },  // Mace_1H_Flanged_D_01Copper
+    // ---- 权杖 ----
+    "QuartzSceptre": { "display": 1783, "weapon": "mace" },  // Mace_1H_Flanged_A_02Blue
+    "HornedSceptre": { "display": 1779, "weapon": "mace" },  // Mace_1H_Spiked_A_03Skullblue
+    "OpalSceptre":   { "display": 1774, "weapon": "mace" },  // Mace_1H_Flanged_A_03Blue
+    // ---- 双手剑 ----
+    "CorrodedBlade":      { "display": 1628, "type": "twoHand", "weapon": "sword2h" },  // Sword_2H_Claymore_A_02
+    "LitheBlade":         { "display": 5057, "type": "twoHand", "weapon": "sword2h" },  // Sword_2H_Katana_B_01
+    "EngravedGreatsword": { "display": 1203, "type": "twoHand", "weapon": "sword2h" },  // Sword_2H_Broadsword_A_01
+    // ---- 弓（DQQ 弓在主手；WoW 的弓拿在左手）----
+    "ShortBow":   { "display": 2461, "type": "ranged", "weapon": "bow" },  // Bow_Short_A_01
+    "LongBow":    { "display": 2794, "type": "ranged", "weapon": "bow" },  // Bow_1H_Standard_B_01Orange
+    "DecurveBow": { "display": 2826, "type": "ranged", "weapon": "bow" },  // Bow_1H_Standard_C_01Red
+    // ---- 长杖 ----
+    "LongStaff":    { "display": 472,  "type": "twoHand", "weapon": "staff" },  // Stave_2H_Long_A_01Teal
+    "RoyalStaff":   { "display": 1648, "type": "twoHand", "weapon": "staff" },  // Stave_2H_Jeweled_B_01Red
+    "EclipseStaff": { "display": 1643, "type": "twoHand", "weapon": "staff" },  // Stave_2H_Other_B_01Red
+    // ---- 双手斧 ----
+    "StoneAxe":     { "display": 782,   "type": "twoHand", "weapon": "axe2h" },  // Axe_2H_Battle_B_01
+    "Labrys":       { "display": 1458,  "type": "twoHand", "weapon": "axe2h" },  // Axe_2H_War_A_01
+    "KaruiChopper": { "display": 22598, "type": "twoHand", "weapon": "axe2h" },  // Axe_2H_Horde_C_01
+    // ---- 双手锤 ----
+    "Mallet":     { "display": 1243,  "type": "twoHand", "weapon": "mace2h" },  // Hammer_2H_Maul_A_01Green
+    "MorningStar":{ "display": 1441,  "type": "twoHand", "weapon": "mace2h" },  // Mace_2H_Spiked_A_01Silver
+    "KaruiMaul":  { "display": 25046, "type": "twoHand", "weapon": "mace2h" },  // Hammer_2H_Horde_A_01
+    // ---- 长矛 ----
+    "Lance":   { "display": 3581, "type": "twoHand", "weapon": "polearm" },  // Misc_2H_Harpoon_B_01Steel（鱼叉式长矛）
+    "Halberd": { "display": 869,  "type": "twoHand", "weapon": "polearm" },  // Polearm_2H_Bladed_C_01
+    "Spear":   { "display": 1733, "type": "twoHand", "weapon": "polearm" },  // Polearm_2H_Bladed_A_01
+    // ---- 副手：盾 ----
+    "SmallShield": { "display": 1673, "type": "shield" },  // Buckler_Round_A_01Black
+    "TowerShield": { "display": 1706, "type": "shield" },  // Shield_Rectangle_A_01Purple
+    "Buckler":     { "display": 2324, "type": "shield" }   // Buckler_Oval_A_01Red
+    // 箭袋（SerratedArrowQuiver）、标枪（Javelin）暂不显示
+  }
+}
