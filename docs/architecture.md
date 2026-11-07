@@ -199,11 +199,14 @@ flowchart LR
 
 ## 7. benilla 不连服务器运行
 
-benilla 本身需要连服务器才能运行。我们参考成熟的例子：
-- **Azeroth Survivors**：`crates/benilla-app/src/survivors/` 在客户端里直接驱动单位，没有服务器。
-- **艾泽拉斯之潮**：客户端分支的组织方式，项目代码集中在 `client/crates/hoa`，用子模块管理。
+benilla 本身需要连服务器才能运行。验证阶段确认的做法（2026-11-07，详见 `docs/spike-results.md` §2）：
 
-具体做法在验证阶段确认。
+- 设置环境变量 `EXILE_RUNTIME` 时，客户端不启动原来的网络线程，改由桥接模块 `client/crates/benilla-app/src/net/exile.rs` 连 runtime 的 WebSocket。
+- 桥接把 runtime 的 JSON 消息合成为客户端原有的 `SessionEvent`（登录、领域、角色列表、进世界、单位创建与移动、血量、攻击、聊天与插件消息），客户端其余部分照常工作；客户端发出的命令（插件消息、传送确认、名字查询等）由桥接接住。
+- 对上游的改动只有少数几处，都只在 Exile 模式下生效（清单见 spike-results §2）。
+- 界面插件不直连 runtime：插件用 WoW 插件消息和桥接对话，桥接再转成 `ui.*`（bridge-protocol §5）。
+
+参考过的例子：Azeroth Survivors（客户端里直接驱动单位）、艾泽拉斯之潮（客户端分支用子模块管理）。
 
 ## 8. 启动器与发布
 
@@ -278,3 +281,4 @@ WoW 目录/
 | 2026-11-06 | Claude | 补充 D16：验证用 DQQ 服务器地址；测试账号放在被 git 忽略的本地配置 |
 | 2026-11-06 | Claude | 补充 D14、D15：DQQ 三个核心项目；验证阶段用在线模式，离线 SQLite 由用户后续抽离 |
 | 2026-11-06 | Claude | 根据讨论稿 v0.5.3 整理为干净版本；讨论稿移至 archive/ |
+| 2026-11-07 | Claude | §7 按验证结果改写；验证结论见 spike-results.md |
