@@ -50,6 +50,8 @@ public sealed class CombatRunner
         var weapons = (request.Creators ?? []).Where(c => c.Id != null)
             .ToDictionary(c => c.Id!.Value.ToString(), c => Visuals.Mapping.MappingFiles.HeroWeapon(c.Equips));
         var enemies = new HashSet<string>();
+        // 技能 → 最近一次施放者（DQQ 投射物不带施放者：用它判定该技能的演法，例如弓射出的箭不另画）。
+        var lastCaster = new Dictionary<string, string>();
         var durationsSeen = new HashSet<string>();
         // 英雄的外观按种子里的角色 DTO（录像当时的装备，config/mapping/equipment.json 对应）。
         var heroes = (request.Creators ?? []).Where(c => c.Id != null).ToDictionary(
@@ -80,6 +82,8 @@ public sealed class CombatRunner
                     or EnumLogType.SkillRangeAndTarget or EnumLogType.DamageTaken or EnumLogType.HealingTaken
                     or EnumLogType.Killed or EnumLogType.ActorIsDown or EnumLogType.ActiveAura)) continue;
                 events.Add(ToEvent(log, p.Tick, weapons, enemies));
+                if (log.LogType == EnumLogType.CastSkill && log.Skill?.SkillNumber is { } cs && log.From?.Id is { } cf)
+                    lastCaster[cs.ToString()] = cf.ToString();
             }
             foreach (var t in p.TimeLine ?? [])
             {
@@ -100,7 +104,7 @@ public sealed class CombatRunner
                 var frame = new CombatFrame(combatId, tick,
                     (t.Players ?? []).Select(a => ToActor(a, "player"))
                         .Concat((t.Enemies ?? []).Select(a => ToActor(a, "enemy"))).ToArray(),
-                    (t.Projects ?? []).Select(a => ToActor(a, "project")).ToArray(),
+                    (t.Projects ?? []).Select(a => ToActor(a, "project") with { Spell = ProjectSpell(a, lastCaster, weapons, enemies) }).ToArray(),
                     events.ToArray(),
                     DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
                 events.Clear();
@@ -132,6 +136,31 @@ public sealed class CombatRunner
             GC.CollectionCount(0) - g0, GC.CollectionCount(1) - g1, GC.CollectionCount(2) - g2);
         return new CombatEnd(combatId, map.CombatResult.ToString(), lastTick, result.XP, result.EnemyKilled,
             result.TotalDamage.ToString(), stats);
+    }
+
+    /// <summary>DQQ 技能显示名 → 技能（投射物只带技能的显示名）。</summary>
+    private static readonly Lazy<Dictionary<string, SkillProfile>> SkillsByName = new(() =>
+        Enum.GetValues<EnumSkillNumber>()
+            .Select(n => { try { return DQQPool.TryGet<SkillProfile, EnumSkillNumber>(n); } catch { return null; } })
+            .Where(p => p?.SkillName != null)
+            .GroupBy(p => p!.SkillName!).ToDictionary(g => g.Key, g => g.First()!));
+
+    /// <summary>
+    /// DQQ 投射物借用的 WoW 飞行法术（PLAN-0006 D）：按技能的演法——投射物技能（火球、奥术球、充能弹、刀光剑影……）
+    /// 用 skills.json 的 projectile 法术（按元素）；射击、投掷的箭和标枪由施放时的法术画，这里为 0。
+    /// </summary>
+    private static int ProjectSpell(TickLogActor a, Dictionary<string, string> lastCaster,
+        Dictionary<string, string?> weapons, HashSet<string> enemies)
+    {
+        if (a.DisplayName == null || !SkillsByName.Value.TryGetValue(a.DisplayName, out var p)) return 0;
+        var skill = p.ProfileNumber.ToString();
+        var tags = p.OriginalTag.Select(t => t.ToString()).ToArray();
+        var element = Visuals.Mapping.SkillLooks.ElementFor(tags, p.DamageType?.ToString(), "Physics");
+        lastCaster.TryGetValue(skill, out var caster);
+        var play = Visuals.Mapping.SkillLooks.Play(skill, tags, element,
+            caster != null && weapons.TryGetValue(caster, out var w) ? w : null, caster != null && enemies.Contains(caster));
+        if (play.Action is "shoot" or "throw") return 0;
+        return Visuals.Mapping.SkillLooks.SpellFor("projectile", skill, element);
     }
 
     private static ActorState ToActor(TickLogActor a, string kind) => new(
@@ -166,14 +195,24 @@ public sealed class CombatRunner
         if (log.LogType == EnumLogType.SkillRangeAndTarget)
         {
             scale = Visuals.Mapping.SkillLooks.AreaScale(shape, log.SkillShape?.Range ?? 0);
-            play = Visuals.Mapping.SkillLooks.Area(shape, play.Action, look);
+            play = Visuals.Mapping.SkillLooks.Area(shape, play.Action, look, tagNames, log.SkillShape?.Range ?? 0);
         }
+        // 投射物技能的发射只播施法（飞行物由 DQQ 投射物画，见 ProjectSpell）。
+        else if (play.Action == "projectile" && log.LogType == EnumLogType.CastSkill) play = play with { Hit = false };
         return new CombatEvent(log.Id.ToString(), log.ActionTick ?? tick, log.LogType.ToString(),
             log.From?.Id?.ToString(), log.Target?.Id?.ToString(), skill?.SkillNumber?.ToString(),
             tagNames, skill?.RenderPhase, log.SkillShape?.SkillShape.ToString(),
             log.SkillShape?.Range ?? skill?.SkillArea ?? 0, log.SkillShape?.CenterX, log.SkillShape?.CenterY,
             element, amount, d?.IsCritical == true, d?.IsKilled == true, log.Success,
             skill?.DurationNumber?.ToString(), play.Action, play.Spell,
-            log.LogType == EnumLogType.DamageTaken ? Visuals.Mapping.SkillLooks.School(element) : play.School, scale);
+            log.LogType == EnumLogType.DamageTaken ? Visuals.Mapping.SkillLooks.School(element) : play.School, scale, play.Hit)
+        {
+            // 散射的射线：DQQ 的散射日志不带中心，出发点是日志的 From（爆炸的投射物或施放者），结束处是 Target。
+            CenterX = play.Action == "ray" ? log.From?.X : log.SkillShape?.CenterX,
+            CenterY = play.Action == "ray" ? log.From?.Y : log.SkillShape?.CenterY,
+            EndX = play.Action == "ray" ? log.Target?.X : null,
+            EndY = play.Action == "ray" ? log.Target?.Y : null,
+            Color = play.Color,
+        };
     }
 }

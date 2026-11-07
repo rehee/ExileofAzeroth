@@ -59,7 +59,7 @@
 `{id, tick, kind, from?, target?, skill?, tags[], phase?, shape?, range, centerX?, centerY?, element, amount, critical, killed, success, duration?, action?, spell, school}`
 `kind` 取 DQQ `EnumLogType`：CastSkill、TriggerSpell、SkillRangeAndTarget、DamageTaken、HealingTaken、Killed、ActorIsDown、ActiveAura（光环开启）；另有 runtime 生成的 `DurationStart`（`target` 身上出现了持续效果 `duration`）。客户端据此选动画、特效和飘字（architecture §5.4）。
 
-PLAN-0006 D 起，runtime 按 `config/mapping/skills.json` 替客户端判定好演法：`action`（角色动作，如 melee、shoot、projectile、cast、channel、spin、nova）、`spell`（借用的 WoW 法术 id，客户端当作 `SMSG_SPELL_GO` 播放；0 = 不播）、`school`（伤害学派，飘字颜色）。`duration`：持续伤害/治疗来自的持续效果，或 `DurationStart` 的持续效果。
+PLAN-0006 D 起，runtime 按 `config/mapping/skills.json` 替客户端判定好演法：`action`（角色动作，如 melee、shoot、projectile、cast、channel、spin、nova）、`spell`（借用的 WoW 法术 id，客户端当作 `SMSG_SPELL_GO` 播放；0 = 不播）、`school`（伤害学派，飘字颜色）。`duration`：持续伤害/治疗来自的持续效果，或 `DurationStart` 的持续效果。另有 `scale`（区域特效的缩放）与 `hit`（false = 只播施法）。`projects[]` 的每项多一个 `spell`：这个投射物借用的 WoW 飞行法术（0 = 不画）。
 
 ## 4. 实测（2026-11-06，Windows，runtime 自检，同进程回环）
 

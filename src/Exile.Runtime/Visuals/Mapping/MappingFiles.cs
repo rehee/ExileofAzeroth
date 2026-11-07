@@ -76,11 +76,17 @@ public static class MappingFiles
             if (!force && newest == stamp) return;
             stamp = newest;
             var errors = new List<string>();
-            LoadMobs(Path.Combine(Dir, "mobs.json"), errors);
-            LoadClasses(Path.Combine(Dir, "classes.json"), errors);
-            LoadEquipment(Path.Combine(Dir, "equipment.json"), errors);
-            LoadMaps(Path.Combine(Dir, "maps.json"), errors);
-            SkillLooks.Load(Path.Combine(Dir, "skills.json"), errors);
+            // 配置写错不能让 runtime 崩：每个文件单独兜住，问题记进 errors（保留上一次读好的表）。
+            void Safe(string file, Action<string, List<string>> load)
+            {
+                try { load(Path.Combine(Dir!, file), errors); }
+                catch (Exception e) { errors.Add($"{file}：读取出错（{e.GetType().Name}：{e.Message}）"); }
+            }
+            Safe("mobs.json", LoadMobs);
+            Safe("classes.json", LoadClasses);
+            Safe("equipment.json", LoadEquipment);
+            Safe("maps.json", LoadMaps);
+            Safe("skills.json", SkillLooks.Load);
             Errors = errors;
             Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}、战场 {Scenes.Count}、技能表现 {SkillLooks.Summary}" +
                 (errors.Count == 0 ? "" : $"，{errors.Count} 个问题"));
@@ -159,7 +165,7 @@ public static class MappingFiles
                 else errors.Add($"classes.json classes.{c.Name}：缺少 class");
             }
         Classes = classes;
-        ClassFallback = root.TryGetProperty("fallback", out var f) && f.TryGetInt32(out var fv) ? fv : 1;
+        ClassFallback = root.TryGetProperty("fallback", out var f) && f.ValueKind == JsonValueKind.Number && f.TryGetInt32(out var fv) ? fv : 1;
     }
 
     private static void LoadEquipment(string path, List<string> errors)

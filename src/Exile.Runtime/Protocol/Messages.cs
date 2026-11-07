@@ -48,7 +48,8 @@ public sealed record CombatBegin(string CombatId, string Map, string Mode, int T
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
-    double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null);
+    double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null, int Spell = 0);
+// Spell（只对 kind = project）：这个 DQQ 投射物借用的 WoW 飞行法术（0 = 不画，例如弓的箭由施放时的自动射击画），PLAN-0006 D。
 
 /// <summary>
 /// 穿装备的人形外观（PLAN-0006）：客户端把它建成玩家式单位，种族、性别、长相加身上的装备（<c>ItemDisplayInfo</c> id）。
@@ -61,7 +62,9 @@ public sealed record DressItem(int Slot, int DisplayId, int InventoryType, int I
 public sealed record CombatEvent(string Id, int Tick, string Kind, string? From, string? Target,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
     string Element, double Amount, bool Critical, bool Killed, bool Success,
-    string? Duration = null, string? Action = null, int Spell = 0, int School = 0, double Scale = 1);
+    string? Duration = null, string? Action = null, int Spell = 0, int School = 0, double Scale = 1, bool Hit = true,
+    double? EndX = null, double? EndY = null, double[]? Color = null);
+// 射线（action = ray）：CenterX/CenterY 为出发点（DQQ 日志的 From，例如爆炸的火球投射物），EndX/EndY 为结束处（日志的 Target）。
 // Duration：持续效果（持续伤害/治疗来自哪个持续效果，或 DurationStart 的那个）。Action / Spell / School：runtime 按
 // config/mapping/skills.json 判定的角色动作、借用的 WoW 法术（0 = 不播）、伤害学派（PLAN-0006 D）。
 // Kind 除 DQQ 日志种类外还有 runtime 生成的 DurationStart（某角色身上出现了一个持续效果，Target = 该角色）。

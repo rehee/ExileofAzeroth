@@ -21,6 +21,7 @@ public static class EventStats
         var rows = new SortedDictionary<string, Row>();
         var kinds = new SortedDictionary<string, int>();
         var raw = new SortedDictionary<string, int>();
+        var projects = new SortedDictionary<string, (int Count, HashSet<string> Ids)>();
         CombatRunner.RawLog = l =>
         {
             var k = $"{l.LogType} | {l.Skill?.SkillNumber?.ToString() ?? l.TriggerSkill?.SkillNumber?.ToString() ?? "—"} | {l.Skill?.DurationNumber?.ToString() ?? ""}";
@@ -37,6 +38,13 @@ public static class EventStats
                 var end = await CombatRunner.RunAsync(replay, watch: false, _ => Task.CompletedTask, f =>
                 {
                     foreach (var a in f.Actors) who.TryAdd(a.Id, a.Kind == "player" ? "英雄" : a.Mob ?? a.Kind);
+                    foreach (var pj in f.Projects)
+                    {
+                        var k = $"{file} | {pj.Name ?? "—"} | r={pj.Radius:0.##}";
+                        var e = projects.TryGetValue(k, out var pv) ? pv : (Count: 0, Ids: new HashSet<string>());
+                        e.Ids.Add(pj.Id);
+                        projects[k] = (e.Count + 1, e.Ids);
+                    }
                     foreach (var e in f.Events)
                     {
                         n++;
@@ -60,6 +68,8 @@ public static class EventStats
             catch (Exception ex) { md.AppendLine($"- {file}：重放失败 {ex.Message}"); }
         }
         CombatRunner.RawLog = null;
+        md.AppendLine("\n## DQQ 投射物（录像 | 名字 | 半径：帧数、个数）\n");
+        foreach (var (k, v) in projects) md.AppendLine($"- {k}：{v.Count} 帧，{v.Ids.Count} 个");
         md.AppendLine("\n## DQQ 原始日志（过滤前：种类 | 技能 | 持续效果）\n\n| 种类 | 技能 | 持续效果 | 次数 |\n|---|---|---|---|");
         foreach (var (k, c) in raw) md.AppendLine($"| {k} | {c} |");
         md.AppendLine("\n## 事件种类\n\n| 种类 | 次数 |\n|---|---|");
