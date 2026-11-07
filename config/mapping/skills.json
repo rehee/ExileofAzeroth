@@ -18,7 +18,7 @@
     "throw":      2764,    // 投掷（标枪等投掷武器）
     "projectile": { "Fire": 133, "Cold": 116, "Lightning": 403, "Chaos": 686, "*": 7268 },  // 火球、寒冰箭、闪电箭、暗影箭、奥术飞弹（物理）
     "cast":       { "Fire": 2136, "Cold": 116, "Lightning": 403, "Chaos": 686, "*": 2050 }, // 火焰冲击、寒冰箭、闪电箭、暗影箭
-    "channel":    { "Chaos": 15407, "Cold": 5138, "Fire": 5740, "*": 15407 },   // 精神鞭笞、吸取法力（蓝色光束）、火焰之雨
+    "channel":    { "Chaos": 15407, "Cold": 10, "Fire": 5740, "*": 15407 },   // 引导的施法动作和声音：精神鞭笞、暴风雪（冰霜）、火焰之雨；光束由射线日志画
     "spin":       1680,    // 旋风斩
     "nova":       { "Cold": 122, "Fire": 11969, "*": 1449 },  // 冰霜新星、火焰新星、魔爆术
     "shout":      6673,    // 战斗怒吼
@@ -60,7 +60,7 @@
       "Lightning": { "spell": 421,   "channel": false },  // 闪电链（Lightning）
       "Chaos":     { "spell": 27286, "channel": false },  // Shadow Wrath（Beam_Purple）：紫色，瓦解射线（奥术）、魔贯光杀炮
       "Fire":      { "spell": 28470, "channel": false },  // Blood Tap（Beam_Red）：红色
-      "Cold":      { "spell": 25178, "channel": false },  // Frost Weakness（ManaBeam）：蓝色，冰霜射线
+      "Cold":      { "spell": 27286, "channel": false, "color": [0.4, 2.0, 2.4] },  // 冰霜射线：紫色平滑光束染成冰蓝（ManaBeam 是锯齿状，像闪电，不用）
       "*":         { "spell": 13003, "channel": false }   // Shrink Ray（ManaBurnBeam）：物理
     }
   },
