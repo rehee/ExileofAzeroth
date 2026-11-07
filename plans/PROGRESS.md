@@ -16,11 +16,13 @@
 | PLAN-0006 | DQQ ↔ WoW 对应表 | 待开始 | — | 0% | 2026-11-07 | [PLAN-0006](PLAN-0006-mapping-table.md) |
 | PLAN-0007 | 藏身处与后台挂机 | 待开始 | — | 0% | 2026-11-07 | [PLAN-0007](PLAN-0007-hideout-idle.md) |
 | PLAN-0008 | 启动器与发布 | 待开始 | — | 0% | 2026-11-07 | [PLAN-0008](PLAN-0008-launcher-release.md) |
-| PLAN-0009 | 离线模式 | 待开始 | — | 0% | 2026-11-07 | [PLAN-0009](PLAN-0009-offline-mode.md) |
-| PLAN-0010 | 手动战斗 | 待开始 | — | 0% | 2026-11-07 | [PLAN-0010](PLAN-0010-manual-combat.md) |
+| PLAN-0009 | 离线模式 | 阻塞 | — | 0% | 2026-11-07 | [PLAN-0009](PLAN-0009-offline-mode.md) |
+| PLAN-0010 | 手动战斗 | 阻塞 | — | 0% | 2026-11-07 | [PLAN-0010](PLAN-0010-manual-combat.md) |
 
 ## 建议顺序
 PLAN-0006（对应表）→ PLAN-0004（战斗表现）；PLAN-0005（界面）可并行；之后 PLAN-0007、PLAN-0008；PLAN-0009、PLAN-0010 等 DQQ 侧就绪再开始。见 `docs/spike-results.md` §6。
+
+每个计划文件里有现状、设计、分阶段任务、验收标准和待确认问题（2026-11-07 细化）。
 
 ## 当前阻塞
 - PLAN-0009 等待 DQQ 侧的离线 service（SQLite）；PLAN-0010 等待 DQQ 侧的标准指令支持。
