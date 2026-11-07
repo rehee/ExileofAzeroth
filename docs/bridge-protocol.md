@@ -108,7 +108,7 @@
 - 聊天命令 `.lineup mobs` → runtime `ui.mapping.mobs` → `ui.mapping.mobs.result [{mob, displayId, boss}]`，桥接把它们排成一排（`.lineup`，dev-workflow §4.0.1）。
 - 桥接给单位起名字：先发 `CreatureName {entry, name}`（相当于 `SMSG_CREATURE_QUERY_RESPONSE`），再建带 `OBJECT_FIELD_ENTRY` 的单位；客户端发来的 `CreatureQuery` 也按同一张表回答。
 - `combat.begin` 新增 `heroes {DQQ 角色 id: dress}`：种子里每个英雄穿着录像当时装备的外观（`equipment.json`）。客户端给扮演创建者的玩家本体换上（每个装备槽都设，种子里没有的槽清空），其他英雄建成穿装备的玩家式单位；回到自由模式时本体换回角色列表里的装备。`ui.character.list.result` 的每项新增 `dress`（现在的装备）。
-- `combat.prepare {replayId, file, characterId}` → `combat.prepare.result {map, scene, wowMap, center:[x,y,z], note}`（或 null）：开打前问录像的战场（`maps.json`），客户端传送过去（`wowMap` 为任意 Map.dbc 地图，可跨大陆；加载画面至少 0.5 秒）、读那里的地形，加载完再发 `combat.replay`。5 秒没有回答就用上一次的战场。
+- `combat.prepare {replayId, file, characterId}` → `combat.prepare.result {map, scene, wowMap, center:[x,y,z], note, clear}`（或 null；`clear` 为清小摆件的正方形边长，码，null = 200）：开打前问录像的战场（`maps.json`），客户端传送过去（`wowMap` 为任意 Map.dbc 地图，可跨大陆；加载画面至少 0.5 秒）、读那里的地形，加载完再发 `combat.replay`。5 秒没有回答就用上一次的战场。
 - 怪物的 `model` 现在是数值 display id（runtime `MobLooks`），客户端直接使用。
 - 穿装备的人形：ActorState（及 `ui.mapping.mobs.result` 的项）可带 `dress {race, gender, skin, face, hair, hairColor, items: [{slot, displayId, inventoryType, itemClass, itemSubclass}]}`。有它时客户端建玩家式单位（guid 高位 0，种族/性别的本体 display，`PLAYER_BYTES` 长相，`PLAYER_VISIBLE_ITEM_n_0` 装备），装备的物品模板（entry = 800000 + 外观 id）和名字（`PlayerName`）先于单位下发，客户端的 `ItemQuery`、`NameQuery` 也按同一份回答。体型按 DQQ 半径缩放，不做占地上限（人物模型的包围盒含整个动画范围，会被缩得过小）。
 

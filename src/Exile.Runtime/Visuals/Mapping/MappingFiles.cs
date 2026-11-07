@@ -219,7 +219,9 @@ public static class MappingFiles
                     || !c[0].TryGetDouble(out var x) || !c[1].TryGetDouble(out var y))
                 { errors.Add($"{at}：center 应为 [x, y]"); continue; }
                 double? z = c.GetArrayLength() > 2 && c[2].TryGetDouble(out var zv) ? zv : null;
-                scenes[sc.Name] = new Battlefield("", sc.Name, map, [x, y, z ?? 0], Str(sc.Value, "note") ?? "");
+                double? clear = sc.Value.TryGetProperty("clear", out var cl) && cl.TryGetDouble(out var cv) ? cv : null;
+                if (clear < 0) { errors.Add($"{at}.clear：应为 0（不清）或正数（码）"); clear = null; }
+                scenes[sc.Name] = new Battlefield("", sc.Name, map, [x, y, z ?? 0], Str(sc.Value, "note") ?? "", clear);
             }
         var maps = new Dictionary<string, string>();
         if (root.TryGetProperty("maps", out var ms) && ms.ValueKind == JsonValueKind.Object)
