@@ -32,6 +32,14 @@ public static class WowLook
         return "Kobold";
     }
 
+    /// <summary>
+    /// 特殊标记的怪物：渲染时不受"体型 N 最多占 N×N 单位见方"的限制（客户端 `unit_scale`）。
+    /// 目前没有，按需在这里列出 DQQ 怪物编号（<c>EnumMob</c> 名）。
+    /// </summary>
+    private static readonly HashSet<string> OversizeMobs = [];
+
+    public static bool Oversize(string? mob) => mob != null && OversizeMobs.Contains(mob);
+
     /// <summary>DQQ 职业（战斗风格）→ WoW 职业 id（人类可用：1 战士 2 圣骑士 4 盗贼 5 牧师 8 法师 9 术士）。</summary>
     public static int WowClass(string archetype) => archetype switch
     {

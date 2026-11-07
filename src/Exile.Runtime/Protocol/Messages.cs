@@ -36,7 +36,8 @@ public sealed record ReplaySummary(string Id, DateTime? PlayTime, int Ticks, str
     string? Name = null, string? Character = null);
 /// <summary>combat.replay：指定 replayId，或不指定时取该角色最近一场；没有录像时用角色开一场新战斗。</summary>
 /// <summary>回放一场录像：<c>ReplayId</c>（服务器录像），或 <c>File</c>（录像文件，见 Replays/ReplayFiles）。</summary>
-public sealed record CombatReplayRequest(string? ReplayId, string? CharacterId, string? Mode, string? File = null);
+/// <summary><c>Hold</c>：发完开场帧后等客户端的 <c>combat.ready</c> 再继续（最多 <c>MessageRouter.ReadyTimeout</c>）。</summary>
+public sealed record CombatReplayRequest(string? ReplayId, string? CharacterId, string? Mode, string? File = null, bool Hold = false);
 public sealed record ReplayExportRequest(string? ReplayId);
 public sealed record ReplayExportResult(string File, string Path);
 public sealed record ReplayFileSummary(string File, string Id, DateTime? PlayTime, int Ticks, string Result, long Experience, string? TotalDamage,
@@ -45,7 +46,7 @@ public sealed record CombatBegin(string CombatId, string Map, string Mode, int T
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
-    double? TargetX = null, double? TargetY = null);
+    double? TargetX = null, double? TargetY = null, bool Oversize = false);
 public sealed record CombatEvent(string Id, int Tick, string Kind, string? From, string? Target,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
     string Element, double Amount, bool Critical, bool Killed, bool Success);

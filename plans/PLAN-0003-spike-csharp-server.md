@@ -105,6 +105,10 @@
 
 - 2026-11-06（Claude）：用户追加需求：录像文件导出与导入回放（DQQ 网页版同格式，Base64 的 `CombatReplayEntity` JSON）。插件窗口分 Recent / Files 两栏：Recent 每条可 Export 到 `replays/dqq-replay-<id8>.txt`；Files 列出目录里的文件，点一条按文件回放。列表说明以角色名和录像名开头（取自录像里的 `FriendDTOs`）。实测：导出 88b608ed 成功并能解回；用户给的 c6bc687b（角色 "1a"，别人的角色）能列出并回放。注意：c6bc687b 原记录 29 tick 通关（Clear），重新模拟在约 30 tick 以 TimeOut 结束——这份录像是 10-30 的版本，很可能 DQQ 逻辑之后有改动导致重放不一致（文件里 `GameVersion` 为空，无法判断版本）；10-31 的 88b608ed 重放结果一致。部分代码由另一会话在 21:45 写好未提交，本次接手补上名字并测试。
 
+- 2026-11-07（Claude）：用户追加体型要求：体型 = DQQ 半径 / 0.5（人类女为 1）；英雄缩放 = 体型；怪物缩放 = 模型自身比例 × 体型，非特殊标记的怪物占地不超过"体型 × 2 码"见方（模型包围盒取长宽较大值）。特殊标记在 runtime `WowLook.Oversize`（目前为空），经 ActorState `oversize` 传给客户端。实测螃蟹（display 342，包围盒 3.38 码）在体型 1 下缩到 2 码以内。精英（体型 2）、首领（体型 3）在这张图里没出现，未实测。
+
+- 2026-11-07（Claude）：开场等待：`combat.replay` 带 `hold`，runtime 发完第一个 tick 的帧后等客户端 `combat.ready`（上限 15 秒），之后节拍器重新计时；客户端立即显示开场帧（不走 5 帧延后），每帧统计还没建好模型的单位，全部建好再等 0.8 秒（至少 2.5 秒、最多 10 秒）后发 `combat.ready`。战场里所有单位保持战斗姿势（`AttackStart`，见 architecture §5.2）。实测：开场等待 2.5 秒（模型约在 1.5 秒内全部建好），之后才开战；英雄站立时动画为 Ready（25），回到自由模式恢复 Stand（0）。
+
 ## 讨论 / 交接
 - 2026-11-06（Claude）：发现 `C:\wow_survival` 已有一套接近方案 T 的原型（详见下）。fork 与工具安装暂停，等用户决定是否以它为基础。`tools/setup-dev.ps1` 已写好但**未运行**，原型目录显示 Windows 上已有 Rust 构建产物，可能不需要。
   - `csp/`：C# .NET 8，经 hostfxr **在 Rust 显示进程内**运行；直接项目引用 `C:\code\dqq\DQQ`；`CombatRenderService` 逐 tick 快照、`CombatVisualAdapter` 表现事件、`NativeBridge` 原生接口（JSON）；`Csp.Browser` 网页版用 DQQ.Web.Component + IndexedDB，在线连 pogapi2；还有 `Csp.Launcher`。

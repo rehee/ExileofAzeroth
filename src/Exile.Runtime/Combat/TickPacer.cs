@@ -25,6 +25,13 @@ public sealed class TickPacer
         while (clock.Elapsed.TotalMilliseconds < target) Thread.SpinWait(50);
     }
 
+    /// <summary>从下一个 tick 重新计时（开场等待客户端就绪之后用，免得之后的 tick 一口气追赶）。</summary>
+    public void Rebase()
+    {
+        firstTick = -1;
+        clock.Reset();
+    }
+
     [DllImport("winmm.dll")] private static extern uint timeBeginPeriod(uint ms);
 
     /// <summary>把 Windows 计时器精度调到 1 ms（进程退出时系统自动恢复）。</summary>

@@ -22,12 +22,15 @@ public sealed class CombatRunner
 {
     /// <summary>用角色快照开一场新战斗（新种子）。</summary>
     public static Task<CombatEnd> RunAsync(CharacterDTO character, EnumMapNumber mapNumber, bool watch,
-        Func<CombatBegin, Task> onBegin, Func<CombatFrame, Task>? onFrame, CancellationToken ct)
-        => RunAsync(character.NewCombatReplayForPlay(mapNumber, 1), watch, onBegin, onFrame, ct);
+        Func<CombatBegin, Task> onBegin, Func<CombatFrame, Task>? onFrame, CancellationToken ct,
+        Func<Task>? waitReady = null)
+        => RunAsync(character.NewCombatReplayForPlay(mapNumber, 1), watch, onBegin, onFrame, ct, waitReady);
 
     /// <summary>按录像（种子 + 快照 + 指令序列）重新模拟一场战斗，结果与原战斗一致（D6）。</summary>
+    /// <param name="waitReady">开场等待：发完第一个 tick 的帧后等它完成（客户端的模型都出来了），再从下一个 tick 起按节奏推送。</param>
     public static async Task<CombatEnd> RunAsync(CombatReplayEntity replay, bool watch,
-        Func<CombatBegin, Task> onBegin, Func<CombatFrame, Task>? onFrame, CancellationToken ct)
+        Func<CombatBegin, Task> onBegin, Func<CombatFrame, Task>? onFrame, CancellationToken ct,
+        Func<Task>? waitReady = null)
     {
         var combatId = Guid.NewGuid().ToString("N");
         using var request = replay.GetReplayRequestDTO()
@@ -76,6 +79,15 @@ public sealed class CombatRunner
                 totalBytes += bytes; maxBytes = Math.Max(maxBytes, bytes);
                 if (onFrame != null) await onFrame(frame);
             }
+            if (waitReady != null && frames > 0)
+            {
+                var wait = waitReady;
+                waitReady = null;
+                var held = Stopwatch.StartNew();
+                await wait();
+                Console.WriteLine($"[combat] 开场等待客户端就绪 {held.Elapsed.TotalSeconds:F1} s");
+                pacer?.Rebase();
+            }
         };
 
         using var map = new Map();
@@ -96,7 +108,7 @@ public sealed class CombatRunner
         a.Id?.ToString() ?? $"{kind}:{a.X:F2},{a.Y:F2}", kind, a.X, a.Y, a.Radius, a.Angle,
         a.PercentageHP, a.CurrentLife, a.MaxLife, a.IsMoving, a.DisplayName, a.MobNumber?.ToString(),
         kind == "player" ? Visuals.WowLook.HeroModel : Visuals.WowLook.MobModel(a.MobNumber?.ToString()),
-        a.TargetX, a.TargetY);
+        a.TargetX, a.TargetY, kind == "enemy" && Visuals.WowLook.Oversize(a.MobNumber?.ToString()));
 
     private static CombatEvent ToEvent(TickLogItem log, int tick)
     {

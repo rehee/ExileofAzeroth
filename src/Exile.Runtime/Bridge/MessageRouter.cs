@@ -19,6 +19,10 @@ public sealed class MessageRouter
     private readonly ReplayFiles files;
     private long seq;
     private CancellationTokenSource? combatCts;
+    /// <summary>当前战斗的开场等待（combat.ready 到达时完成）。</summary>
+    private TaskCompletionSource? ready;
+    /// <summary>开场等待的上限：客户端没回 combat.ready 也照常开始。</summary>
+    public static readonly TimeSpan ReadyTimeout = TimeSpan.FromSeconds(15);
 
     public MessageRouter(DqqHost dqq, ReplayFiles files)
     {
@@ -86,6 +90,9 @@ public sealed class MessageRouter
                 var rr = msg.Data?.Deserialize<CombatReplayRequest>(ProtocolJson.Options) ?? new CombatReplayRequest(null, null, null);
                 StartReplay(conn, msg.Seq, rr, ct);
                 break;
+            case "combat.ready":
+                ready?.TrySetResult();
+                break;
             case "combat.stop":
                 combatCts?.Cancel();
                 break;
@@ -145,20 +152,24 @@ public sealed class MessageRouter
                     ? await files.Load(req.File)
                     : await dqq.GetReplay(Guid.TryParse(req.ReplayId, out var r) ? r : null, charId);
                 var watch = req.Mode != "background";
+                var hold = watch && req.Hold ? new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) : null;
+                ready = hold;
+                Func<Task>? waitReady = hold == null ? null
+                    : () => hold.Task.WaitAsync(ReadyTimeout, token).ContinueWith(_ => { }, CancellationToken.None);
                 Func<CombatBegin, Task> begin = b => Send(conn, "combat.begin", re, b, token);
                 Func<CombatFrame, Task>? frame = watch ? f => Send(conn, "combat.frame", null, f, token) : null;
                 CombatEnd end;
                 if (replay != null)
                 {
                     Console.WriteLine($"[combat] 回放录像 {replay.Id}（{replay.PlayTime}，{replay.Tick} tick{(string.IsNullOrEmpty(req.File) ? "" : $"，文件 {req.File}")}）");
-                    end = await CombatRunner.RunAsync(replay, watch, begin, frame, token);
+                    end = await CombatRunner.RunAsync(replay, watch, begin, frame, token, waitReady);
                 }
                 else
                 {
                     Console.WriteLine("[combat] 没有录像，改用角色开一场新战斗");
                     var chars = await dqq.GetCharacters();
                     var character = chars.FirstOrDefault(x => x.Id == charId) ?? chars.First();
-                    end = await CombatRunner.RunAsync(character, EnumMapNumber.Map_1_1, watch, begin, frame, token);
+                    end = await CombatRunner.RunAsync(character, EnumMapNumber.Map_1_1, watch, begin, frame, token, waitReady);
                 }
                 await Send(conn, "combat.end", re, end, token);
             }

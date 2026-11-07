@@ -39,13 +39,16 @@
 | R→C | `combat.begin` | `{combatId, map, mode, tickRate, focusId}` | `focusId` 为玩家英雄的 id |
 | R→C | `combat.frame` | `{combatId, tick, actors[], projects[], events[], sentAtMs}` | 每 tick 一帧，30/s |
 | R→C | `combat.end` | `{combatId, result, ticks, experience, kills, totalDamage, stats}` | `result` 为 DQQ `EnumCombatResult` 名 |
+| C→R | `combat.replay` | `{replayId?, file?, characterId?, mode, hold?}` | 回放一场录像（服务器录像或录像文件）；没有录像时用角色开新战斗 |
+| C→R | `combat.ready` | `{combatId}` | 开场就绪：`hold: true` 时 runtime 发完第一个 tick 的帧后等它（最多 15 秒），再从下一个 tick 起按节奏推送 |
 | C→R | `combat.stop` | — | 中止当前战斗 |
 | C→R | `cmd.*` | — | 预留（D7），runtime 回 `cmd.ack {accepted:false, reason:"reserved"}` |
 | R→C | `error` | `{message}` | `re` 指向出错的请求 |
 
 ### 3.1 ActorState（`actors[]`、`projects[]`）
 
-`{id, kind:"player"|"enemy"|"project", x, y, radius, angle, hp(0~1), life?, maxLife?, moving, name?, mob?, model, targetX?, targetY?}`
+`{id, kind:"player"|"enemy"|"project", x, y, radius, angle, hp(0~1), life?, maxLife?, moving, name?, mob?, model, targetX?, targetY?, oversize?}`
+`radius`：DQQ 的体型半径（`TileConst.TileRadius` = 0.5 为标准：角色、普通怪；精英 1.0，守卫与首领 1.5）。客户端按"体型 = radius / 0.5"缩放模型，见 architecture §5.2。`oversize`：特殊标记的怪物（runtime `WowLook.Oversize`），不受体型占地上限。
 `moving`：DQQ 的 `IsMoving`，与位移一致，可靠。客户端按 5 帧一段演出移动，整体延后 5 帧显示（architecture §5.2）。
 `angle`：DQQ 只给投射物设朝向，角色和怪物恒为 0。客户端据此推出朝向：移动时面向移动方向，站立时面向 `targetX/targetY`（DQQ 当前目标的战场坐标，没有目标时为空）。
 `model` 为外观关键字：`@HumanFemale`（人类女性 NPC 外观）或生物模型路径关键字（如 `Crab`、`Wolf`），客户端在 CreatureDisplayInfo 中解析为模型编号；也可直接给数字编号。
