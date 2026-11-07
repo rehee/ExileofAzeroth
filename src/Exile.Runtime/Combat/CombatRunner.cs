@@ -198,7 +198,8 @@ public sealed class CombatRunner
             play = Visuals.Mapping.SkillLooks.Area(shape, play.Action, look, tagNames, log.SkillShape?.Range ?? 0);
         }
         // 投射物技能的发射只播施法（飞行物由 DQQ 投射物画，见 ProjectSpell）。
-        else if (play.Action == "projectile" && log.LogType == EnumLogType.CastSkill) play = play with { Hit = false };
+        else if (play.Action is "projectile" or "channel" && log.LogType == EnumLogType.CastSkill) play = play with { Hit = false };
+        // 引导技能（瓦解射线、冰霜射线、奥术洪流）也只播施法：光束由它的区域日志（射线、散射）画。
         return new CombatEvent(log.Id.ToString(), log.ActionTick ?? tick, log.LogType.ToString(),
             log.From?.Id?.ToString(), log.Target?.Id?.ToString(), skill?.SkillNumber?.ToString(),
             tagNames, skill?.RenderPhase, log.SkillShape?.SkillShape.ToString(),

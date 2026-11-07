@@ -53,6 +53,15 @@
       "Cold":      5138,                                         // ManaBeam：吸取法力的蓝色光束
       "Lightning": 8345,                                         // ShockLightning：持续的电弧光束
       "*":         { "spell": 689, "color": [1.3, 1.3, 1.3] }    // SoulBeam（吸取生命）提亮：物理
+    },
+    // 射线形状（Ray：瓦解射线、闪电、冰霜射线、魔贯光杀炮……）：参考闪电技能的形式（用户 2026-11-07）——
+    // 从施放处一下打到终点的光束（施放型光束，"channel": false），光束按元素选本身就是那个颜色的。
+    "Ray": {
+      "Lightning": { "spell": 421,   "channel": false },  // 闪电链（Lightning）
+      "Chaos":     { "spell": 27286, "channel": false },  // Shadow Wrath（Beam_Purple）：紫色，瓦解射线（奥术）、魔贯光杀炮
+      "Fire":      { "spell": 28470, "channel": false },  // Blood Tap（Beam_Red）：红色
+      "Cold":      { "spell": 25178, "channel": false },  // Frost Weakness（ManaBeam）：蓝色，冰霜射线
+      "*":         { "spell": 13003, "channel": false }   // Shrink Ray（ManaBurnBeam）：物理
     }
   },
 
@@ -66,9 +75,9 @@
     "Healing":         { "spell": 2050 },   // 次级治疗术
     "Renew":           { "spell": 139 },    // 恢复
     "PowerWordShield": { "spell": 17 },     // 真言术：盾
-    "Lightning":       { "spell": 421 },    // 闪电链
+    "Lightning":       { "spell": 403, "hit": false },  // 只播闪电箭的施法；闪电本身由射线（rays.Ray）画
     "Flamethrow":      { "spell": 2120 },   // 烈焰风暴
-    "SpecialBeamCannon": { "spell": 15407 }, // 精神鞭笞的光束
+    "SpecialBeamCannon": { "spell": 15407, "hit": false }, // 只播施法；光束由射线（rays.Ray）画
     // 烈焰新星：向四周发射火球（DQQ 投射物），自身的爆炸没有伤害，不播新星圈（用户 2026-11-07）；只做施法动作（火焰冲击的施法）
     "FireNova":        { "action": "cast", "spell": 2136, "hit": false }   // hit: false = 只播施法，不播命中特效
   },
