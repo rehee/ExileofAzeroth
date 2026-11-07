@@ -3,11 +3,11 @@
 | 字段 | 内容 |
 |------|------|
 | 编号 | PLAN-0006 |
-| 状态 | 待开始 |
+| 状态 | 进行中 |
 | 负责人 | （待认领） |
 | 创建日期 | 2026-11-07 |
 | 最后更新 | 2026-11-07 |
-| 完成度 | 0% |
+| 完成度 | 40% |
 | 关联设计 | docs/architecture.md D17、§5.4；docs/skill-presentation.md；docs/spike-results.md |
 | 依赖计划 | 无（PLAN-0004 依赖本计划） |
 
@@ -35,7 +35,7 @@
 | `EnumCharacterTrait` | 16 | 界面图标（`Interface\Icons\…`） | 0005 |
 
 ## 设计
-1. **表的形式**：C# 静态数据，放在 runtime `src/Exile.Runtime/Visuals/Mapping/`，按 DQQ 枚举名为键（枚举名而不是数值，DQQ 插入新值时不错位）。每类一个文件，例如 `MobLooks.cs`、`SkillLooks.cs`。
+1. **表的形式**（2026-11-07 用户改为配置文件，D17 修订）：`config/mapping/*.json`，按 DQQ 枚举名为键（枚举名而不是数值，DQQ 插入新值时不错位），每类一个文件（`mobs.json`、`classes.json`，以后 `skills.json` 等）；runtime `Visuals/Mapping/MappingFiles.cs` 读取，文件改过就重读。格式见 `docs/mapping-config.md`。
 2. **谁来解析**：runtime 把"外观描述"放进协议（ActorState `model` 已有；新增 `skill`、`element` 等对应结果），客户端只执行，不认识 DQQ 枚举。数值型 display id / spell id 直接下发；关键字型（如 `@HumanFemale`）由客户端 `ModelBook` 解析。
 3. **回退**：每类有默认值（怪物→狗头人、技能→按标签的普通攻击动画、元素→物理）。缺失时记录一次日志。
 4. **缺失清单工具**：runtime 加命令行开关 `--mapping-report`，列出每个枚举值的对应结果与缺失项，输出到 `tools/logs/mapping-report.md`。
@@ -43,13 +43,13 @@
 
 ## 任务清单
 ### A. 框架
-- [ ] 建 `Visuals/Mapping/`：对应项的类型（模型、法术、学派、场景）、按枚举名查表、回退与日志
-- [ ] 把 `WowLook.MobModel` / `WowClass` 迁到新表，行为不变
-- [ ] `--mapping-report` 缺失清单
+- [x] 建 `Visuals/Mapping/`：按枚举名查表、回退与一次性日志（`MappingLog`）；怪物、战斗风格两张表已建，技能/元素/地图的类型随 D、E 加
+- [x] 把 `WowLook.MobModel` / `WowClass` 迁到新表（`MobLooks`、`ClassLooks`）；怪物改为下发数值 display id
+- [x] `--mapping-report` 缺失清单（`tools/run-mapping-report.cmd` → `tools/logs/mapping-report.md`）
 - [ ] 协议：ActorState 增 `displayId`（数值）与 `nameKey`；CombatEvent 增 `spellId`、`school`（PLAN-0004 使用）；更新 `docs/bridge-protocol.md`
 
 ### B. 怪物（39）
-- [ ] 每个 `EnumMob` 选一个生物 display id（海岸蟹、地精、狼人、兽人、野狼……；思路见 architecture §5.4），记录模型路径与选择理由
+- [x] 每个 `EnumMob` 选一个生物 display id 或穿装备的人形（`config/mapping/mobs.json`，附模型路径与理由）——用户 2026-11-07 已接受（奶牛按用户指定）
 - [ ] 稀有度（用户 2026-11-07 确认，三者都要）：名字颜色（仿 PoE：普通白、魔法蓝、精英黄、冠军/守卫橙）、头像精英边框（WoW 金龙/银龙，选中时可见）、精英以上身上光环特效
 - [x] 首领占地（用户 2026-11-07 确认）：首领（CrabKing、GoblinChief、CowKing 等）**也不能超过**体型换算的正方形（体型 N → N×2 码见方），`Oversize` 名单保持为空
 
@@ -88,5 +88,16 @@
 - 2026-11-07（Claude）：记录用户对待确认问题的答复。
 - 2026-11-07（Claude）：记录用户答复：角色外观统一、地图 3~5 个主题场景、稀有度三种表现都要；技能对应方式待讨论。
 - 2026-11-07（Claude）：用户确认：怪物模型由 Claude 先挑、用户审。
+- 2026-11-07（Claude）：开工。A 框架完成（`Visuals/Mapping/`、`--mapping-report`）；B 第一版怪物表（38 个，DQQ.Core 当前版本的全部）完成，客户端加 `.lineup` 审阅命令与生物名字（`CreatureName`）；导出 DBC 的工具 `run-wow-dbc`。协议的 `displayId`/`nameKey`/`spellId`/`school` 留到 D（技能）一并加。
+- 2026-11-07（Claude）：用户指定"不可名状"（D2 地狱奶牛）：女性牛头人、奶牛肤色（肤色 1，白底黑斑）、穿流沙外套（物品 21499，外观 33895）、拿双手大砍刀（牛头人双手剑，外观 21774）。为此加了"穿装备的人形"（协议 `dress`，客户端建玩家式单位并下发物品模板）——这也是 C（装备外观、英雄换装）要用的通道。用户随后定：武器改为双手长柄偃月刀（`Polearm_2H_Bladed_B_01`，外观 3702）；不可名状之王同为奶牛女牛头人，穿战士 T2 愤怒套（外观 33981–33990）。碰撞、占地以 DQQ 为准，WoW 侧只管画面。新增 `run-wow-blp` 看贴图。
+- 2026-11-07（Claude）：按用户要求把对应表从 C# 代码移到配置文件 `config/mapping/`（mobs.json、classes.json），写了 `docs/mapping-config.md`；改完保存后 `.lineup mobs` 或下一场回放即生效，问题写进日志和 `mapping-report`。已用 `run-mapping-report` 验证读取（怪物 38/38、战斗风格 5/5，无问题）。
+- 2026-11-07（Claude）：奶牛武器改为黑手末日之锯（物品 12583 → 外观 22404），只改配置、游戏里 `.lineup mobs UnName CowKing` 即生效（验证了热重读）。用户接受怪物表，B 的外观部分完成；稀有度表现（名字颜色、精英边框、光环）留到 PLAN-0004 实现时一起做。
+
+## 审阅工具
+- `tools/run-wow-dbc.cmd`：从本机 WoW 数据导出 DBC 原文件到 `tools/logs/wow-dbc/`（不入库），供挑选模型、法术。
+- 游戏里（自由模式）聊天框：
+  - `.lineup mobs`：按对应表把所有怪物排在面前，鼠标指上去显示 DQQ 怪物名；首领按首领体型显示。
+  - `.lineup [size=N] <display id> …`：任意生物外观排成一排（名字 `#id`），用来比较候选。
+  - `.lineup`：清掉。
 
 ## 讨论 / 交接

@@ -1,0 +1,12 @@
+// DQQ 战斗风格（EnumCombatArcheType）→ WoW 职业 id（决定能量条与待机姿势）。字段说明见 docs/mapping-config.md。
+// 人类可用职业：1 战士 2 圣骑士 4 盗贼 5 牧师 8 法师 9 术士。
+{
+  "fallback": 1,
+  "classes": {
+    "Stable":      { "class": 2, "note": "勇士 → 圣骑士" },
+    "Sneaky":      { "class": 8, "note": "秘术师 → 法师" },
+    "Reckless":    { "class": 1, "note": "狂战士 → 战士（怒气）" },
+    "DraggingOut": { "class": 4, "note": "侠客 → 盗贼" },
+    "Funny":       { "class": 4, "note": "格斗家 → 盗贼（能量 + 连击点）" }
+  }
+}

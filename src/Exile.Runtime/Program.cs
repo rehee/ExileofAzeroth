@@ -1,4 +1,4 @@
-using DQQ.Enums;
+﻿using DQQ.Enums;
 using Exile.Runtime;
 using Exile.Runtime.Bridge;
 using Exile.Runtime.Combat;
@@ -13,6 +13,19 @@ GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency; // D9
 TickPacer.RaiseTimerResolution();
 var options = RuntimeOptions.Parse(args);
 Console.WriteLine($"[runtime] .NET {Environment.Version}  api={options.ApiBaseUrl}  config={options.ConfigPath ?? "(无)"}");
+
+Exile.Runtime.Visuals.Mapping.MappingFiles.Init(options.MappingDir);
+if (options.MappingReport)
+{
+    // 只读枚举与表，不登录 DQQ。仓库里写到 tools/logs/，否则写在 runtime 旁。
+    var root = options.ConfigPath != null ? Path.GetDirectoryName(Path.GetDirectoryName(options.ConfigPath)) : null;
+    var dir = root != null ? Path.Combine(root, "tools", "logs") : AppContext.BaseDirectory;
+    Directory.CreateDirectory(dir);
+    var path = Path.Combine(dir, "mapping-report.md");
+    File.WriteAllText(path, Exile.Runtime.Visuals.Mapping.MappingReport.Build());
+    Console.WriteLine($"[runtime] 对应表现状已写到 {path}");
+    return 0;
+}
 
 await using var dqq = DqqHost.Create(options.ApiBaseUrl);
 Console.WriteLine("[runtime] DQQ service 已注册");

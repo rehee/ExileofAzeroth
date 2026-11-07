@@ -43,6 +43,9 @@
 | `client-build` | 编译客户端（profile `play`） | 首次约 14 分钟，增量 1–2 分钟；运行中的游戏会锁住 exe，先退出游戏 |
 | `client-run` | 以普通方式运行客户端（不进 Exile 模式） | |
 | `exile-play` | 一键运行：编译并后台启动 runtime → Exile 模式启动客户端 | 见 §4 |
+| `mapping-report` | 编译 runtime 并输出 DQQ ↔ WoW 对应表的现状与缺失项（PLAN-0006） | 结果 `tools/logs/mapping-report.md`；不登录 DQQ |
+| `wow-dbc` | 编译 `benilla-extract`，从本机 WoW 数据导出 DBC 原文件（生物外观、法术、动画、物品外观……） | 结果 `tools/logs/wow-dbc/`（只供本地分析，不入库、不分发） |
+| `wow-blp` | 把 `tools/logs/wow-blp.txt` 里列出的贴图转成 PNG 到 `tools/logs/wow-blp/` | 选肤色、看贴图用；先跑过 `wow-dbc`（它编译 `benilla-extract`） |
 | `commit-push` | 提交并推送；有 `tools/commit-message-client.txt` 时先提交推送 `client` 子模块 | 提交信息文件用后删除（已忽略） |
 | `init-repo` / `setup-dev` | 一次性脚本 | |
 
@@ -68,6 +71,9 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 
 ### 4.0 界面插件
 `addons/` 下的插件（目前只有 `ExileUI`）由 `exile-play` 在每次启动前复制到 `benilla-config\AddOns\`（开发版客户端的插件目录），改了插件只需重新运行 `exile-play`，不用重编客户端。进入世界后点右上角小地图左边的 **Replays** 按钮打开录像列表（或输入 `/exile`），点一条即回放；Recent 栏每条的 Export 把录像导出到仓库根 `replays\`，Files 栏列出 `replays\` 里的录像文件（包括从 DQQ 网页版下载的 `.txt`）并可回放；`/exile ping` 测试与桥接的往返。
+
+### 4.0.1 对应表审阅（`.lineup`）
+对应表是配置文件 `config/mapping/*.json`，改完保存即可，格式与找 id 的方法见 `docs/mapping-config.md`。自由模式下聊天框输入：`.lineup mobs [怪物名…]` 把 `config/mapping/mobs.json` 里的每个怪物（写了名字就只摆这几个，如 `.lineup mobs UnName CowKing`）排在面前，鼠标指上去显示 DQQ 怪物名，首领按首领体型显示；`.lineup [size=N] <display id> …` 把任意生物外观排成一排（名字 `#id`，`size` 为 DQQ 体型），用来比较候选；`.lineup` 清掉。
 
 ### 4.1 诊断探针（开发版客户端自带）
 
@@ -100,5 +106,6 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 ## 变更记录
 | 日期 | 修改人 | 说明 |
 |------|--------|------|
+| 2026-11-07 | Claude | 新增 `mapping-report`、`wow-dbc` 脚本与 `.lineup` 审阅命令（PLAN-0006） |
 | 2026-11-06 | Claude | 补充：加载画面最短 0.5 秒、诊断探针、按键绑定问题与修复 |
 | 2026-11-06 | Claude | 初稿 |

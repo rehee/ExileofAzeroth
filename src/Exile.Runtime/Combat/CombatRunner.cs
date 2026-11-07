@@ -1,4 +1,4 @@
-using DQQ.Components.Stages.Actors.Characters;
+﻿using DQQ.Components.Stages.Actors.Characters;
 using DQQ.Components.Stages.Maps;
 using DQQ.DTOs;
 using DQQ.Entities;
@@ -108,7 +108,8 @@ public sealed class CombatRunner
         a.Id?.ToString() ?? $"{kind}:{a.X:F2},{a.Y:F2}", kind, a.X, a.Y, a.Radius, a.Angle,
         a.PercentageHP, a.CurrentLife, a.MaxLife, a.IsMoving, a.DisplayName, a.MobNumber?.ToString(),
         kind == "player" ? Visuals.WowLook.HeroModel : Visuals.WowLook.MobModel(a.MobNumber?.ToString()),
-        a.TargetX, a.TargetY, kind == "enemy" && Visuals.WowLook.Oversize(a.MobNumber?.ToString()));
+        a.TargetX, a.TargetY, kind == "enemy" && Visuals.WowLook.Oversize(a.MobNumber?.ToString()),
+        kind == "enemy" ? Visuals.Mapping.MobLooks.Get(a.MobNumber?.ToString()).Dress : null);
 
     private static CombatEvent ToEvent(TickLogItem log, int tick)
     {

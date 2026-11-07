@@ -1,4 +1,4 @@
-using DQQ.Components.Stages.Actors.Characters;
+﻿using DQQ.Components.Stages.Actors.Characters;
 using DQQ.Enums;
 using Exile.Runtime.Combat;
 using Exile.Runtime.Dqq;
@@ -63,6 +63,7 @@ public sealed class MessageRouter
                 await Send(conn, "ui.character.list.result", msg.Seq, (await dqq.GetCharacters()).Select(Summarize).ToArray(), ct);
                 break;
             case "combat.start":
+                Visuals.Mapping.MappingFiles.Refresh();
                 var req = msg.Data?.Deserialize<CombatStartRequest>(ProtocolJson.Options) ?? new CombatStartRequest(null, null, null);
                 StartCombat(conn, msg.Seq, req, ct);
                 break;
@@ -86,7 +87,14 @@ public sealed class MessageRouter
                     f.File, f.Replay.Id.ToString(), f.Replay.PlayTime, f.Replay.Tick, f.Replay.CombatResult.ToString(),
                     f.Replay.XP, f.Replay.TotalDamage, f.Replay.Name, ReplayFiles.CreatorName(f.Replay))).ToArray(), ct);
                 break;
+            case "ui.mapping.mobs":
+                Visuals.Mapping.MappingFiles.Refresh();
+                // 怪物外观表的审阅：客户端 `.lineup mobs` 把每个怪物排成一排（PLAN-0006 B）。
+                await Send(conn, "ui.mapping.mobs.result", msg.Seq, Visuals.Mapping.MobLooks.Table
+                    .Select(kv => new MobLookEntry(kv.Key, kv.Value.DisplayId, Visuals.Mapping.MobLooks.IsBoss(kv.Key), kv.Value.Dress)).ToArray(), ct);
+                break;
             case "combat.replay":
+                Visuals.Mapping.MappingFiles.Refresh();
                 var rr = msg.Data?.Deserialize<CombatReplayRequest>(ProtocolJson.Options) ?? new CombatReplayRequest(null, null, null);
                 StartReplay(conn, msg.Seq, rr, ct);
                 break;

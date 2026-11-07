@@ -104,6 +104,12 @@
 - runtime 消息：`ui.replay.export {replayId}` → `ui.replay.export.result {file, path}`；`ui.replay.files` → `ui.replay.files.result [{file, id, playTime, ticks, result, experience, totalDamage, name, character}]`；`combat.replay` 新增可选 `file`。`ui.replay.list.result` 同样新增 `name`、`character`。
 - 实现：`src/Exile.Runtime/Replays/ReplayFiles.cs`。
 
+### 5.2 对应表审阅
+- 聊天命令 `.lineup mobs` → runtime `ui.mapping.mobs` → `ui.mapping.mobs.result [{mob, displayId, boss}]`，桥接把它们排成一排（`.lineup`，dev-workflow §4.0.1）。
+- 桥接给单位起名字：先发 `CreatureName {entry, name}`（相当于 `SMSG_CREATURE_QUERY_RESPONSE`），再建带 `OBJECT_FIELD_ENTRY` 的单位；客户端发来的 `CreatureQuery` 也按同一张表回答。
+- 怪物的 `model` 现在是数值 display id（runtime `MobLooks`），客户端直接使用。
+- 穿装备的人形：ActorState（及 `ui.mapping.mobs.result` 的项）可带 `dress {race, gender, skin, face, hair, hairColor, items: [{slot, displayId, inventoryType, itemClass, itemSubclass}]}`。有它时客户端建玩家式单位（guid 高位 0，种族/性别的本体 display，`PLAYER_BYTES` 长相，`PLAYER_VISIBLE_ITEM_n_0` 装备），装备的物品模板（entry = 800000 + 外观 id）和名字（`PlayerName`）先于单位下发，客户端的 `ItemQuery`、`NameQuery` 也按同一份回答。体型按 DQQ 半径缩放，不做占地上限（人物模型的包围盒含整个动画范围，会被缩得过小）。
+
 以后的界面（装备、技能等）沿用同一方式：插件发 `<verb>;…`，桥接对应到 runtime 的 `ui.*`。
 
 ## 变更记录
@@ -111,3 +117,4 @@
 |------|--------|------|
 | 2026-11-06 | Claude | v1 草案，含首次实测 |
 | 2026-11-06 | Claude | 新增 §5 插件消息；ActorState 增 targetX/targetY |
+| 2026-11-07 | Claude | §5.2 对应表审阅（`ui.mapping.mobs`、生物名字）；怪物 `model` 改为数值 display id |

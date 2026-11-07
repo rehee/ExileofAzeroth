@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <!-- Exile Runtime：运行 DQQ 与全部业务逻辑，经本机 WebSocket 与客户端交换 JSON 消息（docs/architecture.md D1、D9）。 -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -22,5 +22,7 @@
     <Reference Include="$(DqqBin)*.dll" Private="true" />
     <None Include="$(DqqBin)**\*.resources.dll" Link="%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
     <None Include="$(DqqBin)runtimes\**\*" Link="runtimes\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
+    <!-- 对应表配置（PLAN-0006）：开发时直接读仓库的 config/mapping，发布时用复制到旁边的 mapping/ -->
+    <None Include="$(MSBuildThisFileDirectory)..\..\config\mapping\*.json" Link="mapping\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 </Project>

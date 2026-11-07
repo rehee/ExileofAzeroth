@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
@@ -46,10 +46,22 @@ public sealed record CombatBegin(string CombatId, string Map, string Mode, int T
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
-    double? TargetX = null, double? TargetY = null, bool Oversize = false);
+    double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null);
+
+/// <summary>
+/// 穿装备的人形外观（PLAN-0006）：客户端把它建成玩家式单位，种族、性别、长相加身上的装备（<c>ItemDisplayInfo</c> id）。
+/// 有它时 <c>model</c> 不用。
+/// </summary>
+public sealed record Dress(int Race, int Gender, int Skin, int Face, int Hair, int HairColor, DressItem[] Items);
+
+/// <summary>一件装备：装备槽（0 头 … 4 胸 … 15 主手 16 副手）、外观 id、InventoryType、物品大类与子类。</summary>
+public sealed record DressItem(int Slot, int DisplayId, int InventoryType, int ItemClass, int ItemSubclass);
 public sealed record CombatEvent(string Id, int Tick, string Kind, string? From, string? Target,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
     string Element, double Amount, bool Critical, bool Killed, bool Success);
 public sealed record CombatEnd(string CombatId, string Result, int Ticks, long Experience, int Kills, string TotalDamage, CombatStats Stats);
 public sealed record CombatStats(int Frames, double SimulateMs, double AvgFrameBytes, int MaxFrameBytes, double GcPauseMs, int Gen0, int Gen1, int Gen2);
 public sealed record ErrorData(string Message);
+
+/// <summary><c>ui.mapping.mobs.result</c> 的一项：DQQ 怪物名、生物外观 id、是否首领（审阅时画大一些）。</summary>
+public sealed record MobLookEntry(string Mob, int DisplayId, bool Boss, Dress? Dress = null);

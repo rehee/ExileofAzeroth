@@ -1,4 +1,4 @@
-namespace Exile.Runtime.Visuals;
+﻿namespace Exile.Runtime.Visuals;
 
 /// <summary>
 /// DQQ → WoW 外观对应表（D17：写在代码里，编译时打包）。验证阶段的最小版本。
@@ -15,22 +15,8 @@ public static class WowLook
     /// <summary>英雄在战场上的外观关键字：客户端取一个人类女性 NPC 外观（自带服装）。</summary>
     public const string HeroModel = "@HumanFemale";
 
-    /// <summary>
-    /// DQQ 怪物 → 客户端生物模型关键字（客户端在 CreatureDisplayInfo 里找第一个模型路径包含该关键字、
-    /// 自带贴图的生物）。验证阶段的粗粒度对应，正式表后续细化。
-    /// </summary>
-    public static string MobModel(string? mob)
-    {
-        var m = mob ?? "";
-        if (m.Contains("Crab")) return "Crab";
-        if (m.Contains("Werewolf")) return "Worgen";
-        if (m.Contains("Wolf")) return "Wolf";
-        if (m.Contains("Goblin")) return "Goblin";
-        if (m.Contains("Orc")) return "Orc";
-        if (m.Contains("Cow") || m.Contains("UnName")) return "Cow";
-        if (m.Contains("Dummy")) return "Kobold";
-        return "Kobold";
-    }
+    /// <summary>DQQ 怪物 → 客户端生物外观 id（数字字符串，客户端 <c>ModelBook.resolve</c> 直接用）。表见 <see cref="Mapping.MobLooks"/>。</summary>
+    public static string MobModel(string? mob) => Mapping.MobLooks.Get(mob).DisplayId.ToString();
 
     /// <summary>
     /// 特殊标记的怪物：渲染时不受"体型 N 最多占 N×N 单位见方"的限制（客户端 `unit_scale`）。
@@ -40,14 +26,6 @@ public static class WowLook
 
     public static bool Oversize(string? mob) => mob != null && OversizeMobs.Contains(mob);
 
-    /// <summary>DQQ 职业（战斗风格）→ WoW 职业 id（人类可用：1 战士 2 圣骑士 4 盗贼 5 牧师 8 法师 9 术士）。</summary>
-    public static int WowClass(string archetype) => archetype switch
-    {
-        "Stable" => 2,      // 勇士 → 圣骑士
-        "Sneaky" => 8,      // 秘术师 → 法师
-        "Reckless" => 1,    // 狂战士 → 战士（怒气）
-        "DraggingOut" => 4, // 侠客 → 盗贼
-        "Funny" => 4,       // 格斗家 → 盗贼（能量 + 连击点）
-        _ => 1,
-    };
+    /// <summary>DQQ 战斗风格 → WoW 职业 id。表见 <see cref="Mapping.ClassLooks"/>。</summary>
+    public static int WowClass(string archetype) => Mapping.ClassLooks.Get(archetype);
 }

@@ -1,0 +1,124 @@
+# DQQ ↔ WoW 对应表：配置文件
+
+| 字段 | 内容 |
+|------|------|
+| 状态 | 现行 |
+| 作者 | Claude |
+| 创建日期 | 2026-11-07 |
+| 最后更新 | 2026-11-07 |
+| 关联 | PLAN-0006；architecture.md D17（2026-11-07 修订）；bridge-protocol.md §5.2 |
+
+## 1. 放在哪、怎么生效
+
+对应表是**配置文件**，不写在代码里（用户 2026-11-07：以后会频繁调整）。
+
+- 位置：仓库的 `config/mapping/`，进 git。目前有两份：
+  - `mobs.json`：DQQ 怪物（`EnumMob`）→ WoW 外观
+  - `classes.json`：DQQ 战斗风格（`EnumCombatArcheType`）→ WoW 职业
+  - 以后的技能、元素、地图等各加一份，格式同样写进本文档。
+- 谁读：Exile Runtime（C#，`src/Exile.Runtime/Visuals/Mapping/MappingFiles.cs`）。客户端（Rust）不认识 DQQ，只执行 runtime 发来的外观（display id、`dress`）。
+- 查找顺序：`--mapping <目录>` → 仓库里的 `config/mapping/`（从 runtime 所在目录往上找）→ runtime 旁的 `mapping/`（编译时自动复制过去，供以后的发布包使用）。
+- **改完保存即可，不用重新编译**：runtime 在下面这些时候检查文件有没有改过，改过就重读：
+  - 游戏里输入 `.lineup mobs`（审阅怪物外观）
+  - 开始一场回放或战斗（`combat.replay`、`combat.start`）
+- 出错时：保留上一次读好的表继续运行，问题写进 runtime 日志（`tools/logs/runtime.log`，搜 `[mapping]`）和 `run-mapping-report` 生成的报告。表里没有的项用回退值，并在日志里记一次 `没有对应项`。
+
+## 2. 文件格式
+
+JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 名字必须和 DQQ 枚举名完全一致（拼错会在报告里列出）。
+
+### 2.1 `mobs.json`
+
+```jsonc
+{
+  "fallback": { "display": 26, "note": "狗头人" },   // 表里没有的怪物用它
+  "dresses": { "<外观名>": { /* 见 2.3 */ } },        // 可复用的穿装备外观
+  "mobs": {
+    "<EnumMob 名>": {
+      "display": 342,              // 生物外观 id（CreatureDisplayInfo.dbc），和 dress 二选一
+      "dress": "cow",              // 或者：dresses 里的名字 / 直接写一个 2.3 的对象
+      "model": "Creature\\Crab",   // 可选，只供审阅（报告里显示）
+      "note": "铜色",              // 可选，选择理由
+      "boss": true                 // 可选，只影响 `.lineup mobs` 的显示大小
+    }
+  }
+}
+```
+
+体型不在表里：画面大小由 DQQ 的半径决定（客户端缩放），碰撞和占地完全按 DQQ 计算，WoW 只负责画出来。
+
+### 2.2 `classes.json`
+
+```jsonc
+{
+  "fallback": 1,
+  "classes": {
+    "<EnumCombatArcheType 名>": { "class": 2, "note": "勇士 → 圣骑士" }
+  }
+}
+```
+职业 id：1 战士、2 圣骑士、3 猎人、4 盗贼、5 牧师、7 萨满、8 法师、9 术士、11 德鲁伊（人类可用 1/2/4/5/8/9）。
+
+### 2.3 穿装备的人形（`dress`）
+
+客户端把它建成"玩家式"单位：种族的本体模型 + 长相 + 身上的装备（每件只要外观 id）。
+
+```jsonc
+{
+  "race": "tauren",      // human orc dwarf nightelf undead tauren gnome troll，或数字 1–8
+  "gender": "female",    // male / female
+  "skin": 1,             // 肤色编号（CharSections.dbc 的颜色序号；0 起）
+  "face": 0, "hair": 0, "hairColor": 0,   // 可选，默认 0
+  "items": {
+    "chest": 33895,                                   // 简写：只写外观 id，放法按槽默认
+    "mainHand": { "display": 3702, "type": "twoHand", "weapon": "polearm" }
+  }
+}
+```
+
+**装备槽**（`items` 的键）与默认放法：
+
+| 槽 | 默认 type | 说明 |
+|----|-----------|------|
+| `head` | head | 头盔 |
+| `shoulder` | shoulder | 肩 |
+| `shirt` | shirt | 衬衣 |
+| `chest` | chest | 胸甲；长袍写 `"type": "robe"`（下摆盖住腿） |
+| `waist` | waist | 腰带 |
+| `legs` | legs | 腿 |
+| `feet` | feet | 鞋 |
+| `wrist` | wrist | 护腕 |
+| `hands` | hands | 手套 |
+| `back` | back | 披风 |
+| `mainHand` | oneHand | 主手；双手武器写 `"type": "twoHand"` |
+| `offHand` | offHand | 副手；盾写 `"type": "shield"`，副手物品写 `"type": "holdable"` |
+| `ranged` | ranged | 远程 |
+| `tabard` | tabard | 战袍 |
+
+**type** 可选值：head shoulder shirt chest robe waist legs feet wrist hands back oneHand twoHand mainHand offHand shield holdable ranged thrown rangedRight tabard。
+
+**weapon**（武器种类，可选，影响收刀位置等）：axe axe2h mace mace2h sword sword2h polearm staff dagger fist bow gun crossbow thrown wand。
+
+## 3. 怎么找 id
+
+1. **从游戏数据里查**：双击 `tools/run-wow-dbc.cmd`，把本机 WoW 的 DBC 导出到 `tools/logs/wow-dbc/`（不入库）：
+   - 生物外观 → `CreatureDisplayInfo.dbc` + `CreatureModelData.dbc`（模型路径、皮肤贴图名）
+   - 装备外观 → `ItemDisplayInfo.dbc`（模型名、贴图名、图标名）
+   - 肤色 → `CharSections.dbc`；贴图可用 `run-wow-blp`（把 `tools/logs/wow-blp.txt` 里列的贴图转成 PNG）看
+2. **从物品查外观**：Wowhead 经典版 `https://www.wowhead.com/classic/item=<物品 id>&xml` 里的 `displayId`，例如流沙外套 21499 → 33895、愤怒胸甲 16966 → 33983。
+3. **在游戏里比较**（自由模式聊天框）：
+   - `.lineup mobs [怪物名…]`：按当前 `mobs.json` 把怪物排在面前（写了名字就只摆这几个，如 `.lineup mobs UnName CowKing`），鼠标指上去显示 DQQ 名；
+   - `.lineup [size=N] <display id> …`：任意生物外观排成一排比较候选；
+   - `.lineup`：清掉。
+4. **检查**：双击 `tools/run-mapping-report.cmd` → `tools/logs/mapping-report.md`，列出每个 DQQ 枚举值的对应、缺失项和配置文件的问题。
+
+## 4. 例子
+
+把"螃蟹"换成朱红色的大号螃蟹：`"Crab": { "display": 9571, "note": "换成大号" }` → 保存 → 游戏里 `.lineup mobs`。
+
+给一个怪物穿一身现成外观：先在 `dresses` 里定义，再在 `mobs` 里写 `"dress": "名字"`；几个怪物可以共用同一身。
+
+## 变更记录
+| 日期 | 修改人 | 说明 |
+|------|--------|------|
+| 2026-11-07 | Claude | 初稿：对应表改为配置文件（mobs、classes），含穿装备的人形 |

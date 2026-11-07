@@ -1,0 +1,80 @@
+// DQQ 怪物 → WoW 外观（PLAN-0006）。字段说明见 docs/mapping-config.md。
+// 改完保存即可：游戏里输入 `.lineup mobs` 或开始下一场回放时 runtime 会重新读取，不用重新编译。
+{
+  // 表里没有的怪物用它（并在 runtime 日志里记一次缺失）。
+  "fallback": { "display": 26, "note": "狗头人（每个安装都有）" },
+
+  // 穿装备的人形外观，可被多个怪物共用（怪物里写 "dress": "名字"）。
+  "dresses": {
+    // 地狱奶牛（用户 2026-11-07）：女性牛头人、奶牛肤色（肤色 1，白底黑斑）、流沙外套（物品 21499）、黑手末日之锯（黑石塔上层 雷德·黑手掉落，物品 12583 → 外观 22404，双手长柄）。
+    "cow": {
+      "race": "tauren", "gender": "female", "skin": 1,
+      "items": {
+        "chest": { "display": 33895, "type": "robe" },
+        "mainHand": { "display": 22404, "type": "twoHand", "weapon": "polearm" }
+      }
+    },
+    // 奶牛王（用户 2026-11-07）：同上，穿战士 T2 愤怒套（Plate_RaidWarrior_B_01Black；胸甲 16966 → 33983 已对 Wowhead 核对）。
+    "cowKing": {
+      "race": "tauren", "gender": "female", "skin": 1,
+      "items": {
+        "head": 33981, "shoulder": 33988, "chest": 33983, "waist": 33990,
+        "legs": 33986, "feet": 33989, "wrist": 33982, "hands": 33984,
+        "mainHand": { "display": 22404, "type": "twoHand", "weapon": "polearm" }
+      }
+    }
+  },
+
+  // 每个 DQQ 怪物（EnumMob 名）：display = CreatureDisplayInfo id，或 dress = 上面的外观名；boss 只影响 `.lineup` 显示的大小。
+  "mobs": {
+    // 螃蟹：海岸蟹，按壳色区分（1.12 只有 4 种壳色，可以重复）
+    "Crab":         { "display": 342,  "model": "Creature\\Crab", "note": "铜色" },
+    "SoftCrab":     { "display": 981,  "model": "Creature\\Crab", "note": "象牙色（浅色壳）" },
+    "ShieldCrab":   { "display": 1939, "model": "Creature\\Crab", "note": "朱红色" },
+    "CrabAssassin": { "display": 979,  "model": "Creature\\Crab", "note": "蓝宝石色" },
+    "MagicCrab":    { "display": 9566, "model": "Creature\\Crab", "note": "治疗：蓝宝石色，稍大" },
+    "CrabCaster":   { "display": 1001, "model": "Creature\\Crab", "note": "奥术球：象牙色，稍大" },
+    "CrabKing":     { "display": 9571, "model": "Creature\\Crab", "note": "铜色，大号", "boss": true },
+
+    // 狼与狼人
+    "WhiteWolf":       { "display": 869,  "model": "Creature\\Wolf",     "note": "雪狼皮" },
+    "SavageWolf":      { "display": 9369, "model": "Creature\\DireWolf", "note": "红褐色恐狼" },
+    "ViciousWolf":     { "display": 246,  "model": "Creature\\DireWolf", "note": "黑色恐狼" },
+    "WerewolfCaptain": { "display": 203,  "model": "Creature\\Worgen",   "note": "黑毛狼人", "boss": true },
+
+    // 地精：地精 NPC 外观（自带服装），服装区分职能
+    "Goblin":            { "display": 7034, "model": "Character\\Goblin\\Male（NPC）", "note": "蓝衣" },
+    "BigGoblin":         { "display": 7052, "model": "Character\\Goblin\\Male（NPC）", "note": "红橙衣，外观自带 1.2 倍" },
+    "BigGoblinWeaver":   { "display": 7166, "model": "Character\\Goblin\\Male（NPC）", "note": "治疗：皮甲" },
+    "GoblinShaman":      { "display": 7102, "model": "Character\\Goblin\\Male（NPC）", "note": "毛皮护甲" },
+    "GoblinDesperado":   { "display": 7033, "model": "Character\\Goblin\\Male（NPC）", "note": "红衣头巾" },
+    "GoblinMarauder":    { "display": 7059, "model": "Character\\Goblin\\Male（NPC）", "note": "狼皮护甲" },
+    "GoblinMage":        { "display": 7182, "model": "Character\\Goblin\\Male（NPC）", "note": "皮衣" },
+    "GoblinFireWarlock": { "display": 7170, "model": "Character\\Goblin\\Male（NPC）", "note": "锁甲" },
+    "GoblinCaptain":     { "display": 7185, "model": "Character\\Goblin\\Male（NPC）", "note": "狼皮护腿、护手" },
+    "GoblinLeader":      { "display": 7213, "model": "Character\\Goblin\\Male（NPC）", "note": "护肩" },
+    "GoblinScout":       { "display": 7049, "model": "Character\\Goblin\\Male（NPC）", "note": "皮衣" },
+    "GoblinAlchemist":   { "display": 7222, "model": "Character\\Goblin\\Male（NPC）", "note": "锁甲腰带" },
+    "GoblinChief":       { "display": 7113, "model": "Character\\Goblin\\Male（NPC）", "note": "外观自带 1.5 倍", "boss": true },
+    "GoblinAncient":     { "display": 7055, "model": "Character\\Goblin\\Male（NPC）", "note": "火焰法术，外观自带 1.5 倍", "boss": true },
+    "GoblinGuardian":    { "display": 1269, "model": "Creature\\Goblin\\GoblinShredder", "note": "重击：伐木机", "boss": true },
+
+    // 兽人
+    "OrcWarrior":   { "display": 112,  "model": "Creature\\OrcMaleWarriorLight", "note": "黑石兽人战士" },
+    "OrcGladiator": { "display": 4374, "model": "Character\\Orc\\Male（NPC）", "note": "带头盔" },
+    "OrcSorcerer":  { "display": 2890, "model": "Character\\Orc\\Male（NPC）", "note": "紫色长袍" },
+
+    // 守卫与"不可名状"（D2 奶牛关）
+    "Guard":   { "display": 1613, "model": "Character\\Human\\Male（NPC）", "note": "持战袍的人类卫兵" },
+    "UnName":  { "dress": "cow", "note": "地狱奶牛（用户指定）" },
+    "CowKing": { "dress": "cowKing", "note": "奶牛王（用户指定）", "boss": true },
+
+    // 假人与召唤物
+    "TrainingDummy1":       { "display": 3019,  "model": "Creature\\Object\\WoodenDummy", "note": "训练假人" },
+    "BrokenTrainingDummy1": { "display": 16074, "model": "Creature\\Object\\WoodenDummy", "note": "损坏的假人" },
+    "OfflineDummy":         { "display": 3020,  "model": "Creature\\Object\\ArcheryTarget", "note": "箭靶" },
+    "Mortar":               { "display": 3127,  "model": "Creature\\Object\\Cannon", "note": "火焰词缀召唤的迫击炮：火炮" },
+    "ArcaneSentry":         { "display": 15221, "model": "Creature\\Spells\\SentryTotem", "note": "哨兵图腾" },
+    "Echoform":             { "display": 10701, "model": "Creature\\Ghost", "note": "投影体：紫色幽灵" }
+  }
+}
