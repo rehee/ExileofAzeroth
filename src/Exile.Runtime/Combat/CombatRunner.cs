@@ -213,6 +213,7 @@ public sealed class CombatRunner
             EndX = play.Action == "ray" ? log.Target?.X : null,
             EndY = play.Action == "ray" ? log.Target?.Y : null,
             Color = play.Color,
+            Channel = play.Channel,
         };
     }
 }

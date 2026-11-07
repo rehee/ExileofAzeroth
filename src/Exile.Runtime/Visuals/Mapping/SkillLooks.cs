@@ -12,6 +12,8 @@ public sealed record SkillPlay(string Action, int Spell, int School, bool Hit = 
 {
     /// <summary>射线的染色（RGB 倍数）；null = 法术本来的颜色。</summary>
     public double[]? Color { get; init; }
+    /// <summary>射线画成引导光束（精神鞭笞这类，光束随引导存在）；false = 施放一次（闪电链的弧线）。</summary>
+    public bool Channel { get; init; }
 }
 
 /// <summary><c>skills.json</c>：元素 → 学派、动作 × 元素 → WoW 法术、个别技能覆盖、持续效果开始时的表现。</summary>
@@ -31,6 +33,8 @@ public static class SkillLooks
     private static Dictionary<string, Dictionary<string, int>> rays = new();
     /// <summary>射线的染色：(形状, 键) → RGB 倍数（光束贴图乘上它；加色混合，可大于 1 提亮）。</summary>
     private static Dictionary<(string, string), double[]> rayColors = new();
+    /// <summary>不是引导光束的射线（闪电链这类一次性的弧线，用施放画）：(形状, 键)。</summary>
+    private static HashSet<(string, string)> rayCasts = [];
 
     /// <summary>读取结果的一句话（runtime 日志）。</summary>
     public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、射线 {rays.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}";
@@ -126,6 +130,7 @@ public static class SkillLooks
 
         var rys = new Dictionary<string, Dictionary<string, int>>();
         var rc = new Dictionary<(string, string), double[]>();
+        var rcast = new HashSet<(string, string)>();
         if (root.TryGetProperty("rays", out var ry) && ry.ValueKind == JsonValueKind.Object)
             foreach (var r in ry.EnumerateObject())
             {
@@ -142,6 +147,7 @@ public static class SkillLooks
                         else if (MappingFiles.Int(p.Value, "spell") is { } sid)
                         {
                             map[p.Name] = sid;
+                            if (p.Value.TryGetProperty("channel", out var ch) && ch.ValueKind == JsonValueKind.False) rcast.Add((r.Name, p.Name));
                             if (p.Value.TryGetProperty("color", out var c) && c.ValueKind == JsonValueKind.Array && c.GetArrayLength() == 3)
                                 rc[(r.Name, p.Name)] = c.EnumerateArray().Select(x => x.ValueKind == JsonValueKind.Number && x.TryGetDouble(out var v) ? v : 1).ToArray();
                             else if (p.Value.TryGetProperty("color", out _)) errors.Add($"{at}.{p.Name}.color：要写 [r, g, b]");
@@ -156,6 +162,7 @@ public static class SkillLooks
         areas = ars;
         rays = rys;
         rayColors = rc;
+        rayCasts = rcast;
         actions = acts;
         skills = sks;
         noHit = nh;
@@ -245,7 +252,10 @@ public static class SkillLooks
             var key = PickKey(ray, element, tags);
             var rs = key != null ? ray[key] : 0;
             return new SkillPlay(rs > 0 ? "ray" : "none", rs, School(element))
-            { Color = key != null && rayColors.TryGetValue((shape, key), out var col) ? col : null };
+            {
+                Color = key != null && rayColors.TryGetValue((shape, key), out var col) ? col : null,
+                Channel = key == null || !rayCasts.Contains((shape, key)),
+            };
         }
         if (Band(shape, range) is not { } a)
             return new SkillPlay("none", 0, School(element));

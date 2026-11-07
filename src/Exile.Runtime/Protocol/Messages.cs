@@ -63,7 +63,7 @@ public sealed record CombatEvent(string Id, int Tick, string Kind, string? From,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
     string Element, double Amount, bool Critical, bool Killed, bool Success,
     string? Duration = null, string? Action = null, int Spell = 0, int School = 0, double Scale = 1, bool Hit = true,
-    double? EndX = null, double? EndY = null, double[]? Color = null);
+    double? EndX = null, double? EndY = null, double[]? Color = null, bool Channel = false);
 // 射线（action = ray）：CenterX/CenterY 为出发点（DQQ 日志的 From，例如爆炸的火球投射物），EndX/EndY 为结束处（日志的 Target）。
 // Duration：持续效果（持续伤害/治疗来自哪个持续效果，或 DurationStart 的那个）。Action / Spell / School：runtime 按
 // config/mapping/skills.json 判定的角色动作、借用的 WoW 法术（0 = 不播）、伤害学派（PLAN-0006 D）。
