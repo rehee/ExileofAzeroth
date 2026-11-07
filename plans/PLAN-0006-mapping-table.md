@@ -103,6 +103,7 @@
 - 2026-11-07（Claude）：用户同意弓改左手拿：`equipment.json` 的物品可写 `"slot"` 盖过槽映射，弓放远程槽；只有远程武器的单位战斗中拔出远程武器（`UNIT_FIELD_BYTES_2` = 2），攻击发"自动射击"（法术 75，箭 2414）代替近战挥砍（近战挥砍会让客户端收起弓）。客户端偏离原版一处：Exile 模式下拔远程武器不查 WoW 职业（圣骑士本不能用弓），由 DQQ 决定。短弓外观 2461 的模型不存在、8099 的贴图不存在，改用 8102。游戏里实测左手持弓、拉弓射击。已知小问题：拉弓时弓弦画成一根过长的直线，留到 D 处理。
 - 2026-11-07（Claude）：按用户说明：EnumItem 每一项是一件具体物品，各有外观；带 `EnumUniqueItem` 的独特物品有自己的模型。`equipment.json` 加 `uniqueItems`（先查独特物品，没填用底子物品），角色列表与种子英雄都按物品的 `UniqueItemNumber` 取。DQQ 现有 1 件：漂泊之拳（TheStrayGlove，底子 PlateGlove）→ 无畏（战士 T3）护手 35050，Claude 先挑、用户审；游戏里临时换上看过（黑色带刺的大护手）。`mapping-report` 加独特物品一节（1/1）。
 - 2026-11-07（Claude）：开始 D。用户补充规则：主手是弓、技能是攻击且无肉搏 → 射击动作（写进 `docs/skill-presentation.md` §2.1）。新增 `run-event-stats`（runtime `--event-stats`）：后台重放 `replays/` 的录像，统计实际出现的技能事件，并列出 DQQ 全部 86 个技能的定义（名字、标签、形状、元素、持续效果、是否怪物专用），输出 `tools/logs/event-stats.md`。现有两个录像只出现普攻和奥术洪流；协议的 `CombatEvent` 已带技能、标签、阶段、形状、元素，D 不必再扩协议字段。
+- 2026-11-07（Claude）：用户录了 50 多个技能录像（`replays/replay-技能名.txt`）。`event-stats` 加"DQQ 原始日志"一节（过滤前的日志种类、技能、持续效果）。发现：光环开启是 `ActiveAura` 日志、光环与流血等持续伤害的日志不带技能只带持续效果（runtime 现在把这些滤掉了，要补上）；战吼没有任何日志，只在角色快照里出现持续效果；超级霸王电影弹只有伤害日志。冰霜之锤录像重放无事件，原因是 DQQ 改了冰霜之锤（加武器限制）而 `source/dqq` 是旧编译，`run-update-dqq` 后正常。以后 DQQ 改了代码再录像，要先更新 `source/dqq`。
 
 ## 审阅工具
 - `tools/run-event-stats.cmd`：重放录像、统计技能事件，并列出 DQQ 全部技能的定义（`tools/logs/event-stats.md`）。

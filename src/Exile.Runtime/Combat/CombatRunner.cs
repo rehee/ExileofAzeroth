@@ -20,6 +20,9 @@ namespace Exile.Runtime.Combat;
 /// </summary>
 public sealed class CombatRunner
 {
+    /// <summary>每条新日志（过滤前）的观察点，<c>--event-stats</c> 用来统计 DQQ 实际给了哪些日志。</summary>
+    public static Action<TickLogItem>? RawLog;
+
     /// <summary>用角色快照开一场新战斗（新种子）。</summary>
     public static Task<CombatEnd> RunAsync(CharacterDTO character, EnumMapNumber mapNumber, bool watch,
         Func<CombatBegin, Task> onBegin, Func<CombatFrame, Task>? onFrame, CancellationToken ct,
@@ -67,6 +70,7 @@ public sealed class CombatRunner
             foreach (var log in p.TickLog ?? [])
             {
                 if (!seen.Add(log.Id)) continue;
+                RawLog?.Invoke(log);
                 if (log.LogType is not (EnumLogType.CastSkill or EnumLogType.TriggerSpell
                     or EnumLogType.SkillRangeAndTarget or EnumLogType.DamageTaken or EnumLogType.HealingTaken
                     or EnumLogType.Killed or EnumLogType.ActorIsDown)) continue;

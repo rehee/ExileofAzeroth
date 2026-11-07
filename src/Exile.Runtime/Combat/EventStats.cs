@@ -20,11 +20,18 @@ public static class EventStats
     {
         var rows = new SortedDictionary<string, Row>();
         var kinds = new SortedDictionary<string, int>();
+        var raw = new SortedDictionary<string, int>();
+        CombatRunner.RawLog = l =>
+        {
+            var k = $"{l.LogType} | {l.Skill?.SkillNumber?.ToString() ?? l.TriggerSkill?.SkillNumber?.ToString() ?? "—"} | {l.Skill?.DurationNumber?.ToString() ?? ""}";
+            raw[k] = raw.GetValueOrDefault(k) + 1;
+        };
         var md = new StringBuilder("# 技能事件统计（`--event-stats`）\n\n");
         foreach (var (file, replay) in await files.List())
         {
             var who = new Dictionary<string, string>();
             var n = 0;
+            var rawStart = raw.Values.Sum();
             try
             {
                 var end = await CombatRunner.RunAsync(replay, watch: false, _ => Task.CompletedTask, f =>
@@ -46,10 +53,14 @@ public static class EventStats
                     }
                     return Task.CompletedTask;
                 }, CancellationToken.None);
-                md.AppendLine($"- {file}：{end.Ticks} tick，{n} 个事件，结果 {end.Result}");
+                var rawN = raw.Values.Sum() - rawStart;
+                md.AppendLine($"- {file}：{end.Ticks} tick，{n} 个事件（原始日志 {rawN}），结果 {end.Result}");
             }
             catch (Exception ex) { md.AppendLine($"- {file}：重放失败 {ex.Message}"); }
         }
+        CombatRunner.RawLog = null;
+        md.AppendLine("\n## DQQ 原始日志（过滤前：种类 | 技能 | 持续效果）\n\n| 种类 | 技能 | 持续效果 | 次数 |\n|---|---|---|---|");
+        foreach (var (k, c) in raw) md.AppendLine($"| {k} | {c} |");
         md.AppendLine("\n## 事件种类\n\n| 种类 | 次数 |\n|---|---|");
         foreach (var (k, c) in kinds) md.AppendLine($"| {k} | {c} |");
         md.AppendLine("\n## 技能\n\n| 技能 | 次数 | 事件种类 | 标签 | 阶段 | 形状(范围) | 元素 | 施放者 |\n|---|---|---|---|---|---|---|---|");
