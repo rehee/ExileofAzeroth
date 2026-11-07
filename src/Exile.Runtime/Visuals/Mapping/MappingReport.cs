@@ -32,6 +32,8 @@ public static class MappingReport
             k => ClassLooks.Table.TryGetValue(k, out var c) ? $"{c.ClassId} | {c.Note}" : null, "职业 id | 说明");
         Section(md, "装备 EnumItem → 装备外观（不含材料）", Enum.GetValues<EnumItem>().Where(i => (int)i >= 100000).Select(i => i.ToString()).ToArray(), MappingFiles.EquipItems.ContainsKey,
             k => MappingFiles.EquipItems.TryGetValue(k, out var e) ? $"{e} | equipment.json" : null, "外观 | 来源");
+        Section(md, "独特物品 EnumUniqueItem → 装备外观（盖过底子物品）", Names<EnumUniqueItem>(skip: "None"), MappingFiles.EquipUniques.ContainsKey,
+            k => MappingFiles.EquipUniques.TryGetValue(k, out var e) ? $"{e} | equipment.json" : null, "外观 | 来源");
         // 还没有表的类别：全部列为缺失，计数提醒进度。
         Pending(md, "技能 EnumSkillNumber", Names<EnumSkillNumber>(skip: "NotSpecified"));
         Pending(md, "技能标签 EnumSkillTag", Names<EnumSkillTag>(skip: "NotSpecified"));

@@ -77,5 +77,11 @@
     "TowerShield": { "display": 1706, "type": "shield" },  // Shield_Rectangle_A_01Purple
     "Buckler":     { "display": 2324, "type": "shield" }   // Buckler_Oval_A_01Red
     // 箭袋（SerratedArrowQuiver）、标枪（Javelin）暂不显示
+  },
+
+  // DQQ 独特物品（EnumUniqueItem）→ 外观，写法同 items。独特物品有自己的模型（用户 2026-11-07），
+  // 盖过底子物品（EnumItem）的外观；这里没填的独特物品用底子物品的外观。
+  "uniqueItems": {
+    "TheStrayGlove": 35050  // 漂泊之拳（底子 PlateGlove）：无畏（战士 T3）护手 Plate_RaidWarrior_C_01，黑色带刺的大护手，和底子的金色 T0 护手一眼能分开
   }
 }

@@ -231,9 +231,7 @@ public sealed class MessageRouter
         Visuals.Mapping.MappingFiles.HeroLook.Race, Visuals.WowLook.WowClass(c.CombatArcheTypeNumber.ToString()),
         Visuals.Mapping.MappingFiles.HeroLook.Gender, Visuals.WowLook.DisplayHumanFemale,
         // 英雄的统一外观穿上 DQQ 装备（config/mapping/equipment.json）：客户端用在自由模式与回放里的本体上。
-        Visuals.Mapping.MappingFiles.HeroDress((c.Equips ?? [])
-            .Where(p => p.Value?.Profile != null)
-            .Select(p => (p.Key.ToString(), p.Value!.Profile!.ProfileNumber.ToString()))));
+        Visuals.Mapping.MappingFiles.HeroDress(c.Equips));
 
     private Task Send(BridgeConnection conn, string type, long? re, object? data, CancellationToken ct)
     {

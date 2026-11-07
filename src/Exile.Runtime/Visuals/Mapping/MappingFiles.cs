@@ -35,6 +35,8 @@ public static class MappingFiles
     public static IReadOnlyDictionary<string, string> EquipSlots { get; private set; } = new Dictionary<string, string>();
     /// <summary>DQQ 物品名 → 外观（槽位由 DQQ 装备槽决定，这里只存外观、放法、武器种类）。</summary>
     public static IReadOnlyDictionary<string, JsonElement> EquipItems { get; private set; } = new Dictionary<string, JsonElement>();
+    /// <summary>DQQ 独特物品名（EnumUniqueItem）→ 外观，写法同 <see cref="EquipItems"/>；独特物品有自己的模型，盖过底子物品的外观。</summary>
+    public static IReadOnlyDictionary<string, JsonElement> EquipUniques { get; private set; } = new Dictionary<string, JsonElement>();
 
     /// <summary>战场场景（maps.json 的 scenes）与 DQQ 地图 → 场景名。</summary>
     public static IReadOnlyDictionary<string, Battlefield> Scenes { get; private set; } = new Dictionary<string, Battlefield>();
@@ -185,27 +187,54 @@ public static class MappingFiles
                 ParseItem(own != null && Slots.ContainsKey(own) ? own : "mainHand", it.Value, $"equipment.json items.{it.Name}", errors);
                 items[it.Name] = it.Value.Clone();
             }
+        var uniques = new Dictionary<string, JsonElement>();
+        if (root.TryGetProperty("uniqueItems", out var us) && us.ValueKind == JsonValueKind.Object)
+            foreach (var it in us.EnumerateObject())
+            {
+                if (!Enum.TryParse<DQQ.Enums.EnumUniqueItem>(it.Name, out _)) errors.Add($"equipment.json uniqueItems.{it.Name}：DQQ 没有这个独特物品（EnumUniqueItem），拼写？");
+                var own = Str(it.Value, "slot");
+                if (own != null && !Slots.ContainsKey(own)) errors.Add($"equipment.json uniqueItems.{it.Name}.slot：不认识的装备槽 \"{own}\"");
+                ParseItem(own != null && Slots.ContainsKey(own) ? own : "mainHand", it.Value, $"equipment.json uniqueItems.{it.Name}", errors);
+                uniques[it.Name] = it.Value.Clone();
+            }
         EquipSlots = slots;
         EquipItems = items;
+        EquipUniques = uniques;
     }
 
     /// <summary>
     /// 英雄穿上 DQQ 装备后的外观：<see cref="HeroLook"/> 加每件装备（DQQ 槽 → WoW 槽，DQQ 物品 → 外观）。
     /// 表里没有的物品不显示，记一次缺失。
     /// </summary>
-    public static Dress HeroDress(IEnumerable<(string Slot, string Item)> equips)
+    public static Dress HeroDress(IEnumerable<(string Slot, string Item, string? Unique)> equips)
     {
         var items = new List<DressItem>();
-        foreach (var (slot, item) in equips)
+        foreach (var (slot, item, unique) in equips)
         {
             if (!EquipSlots.TryGetValue(slot, out var wowSlot)) continue;  // 项链、戒指：不显示
-            if (!EquipItems.TryGetValue(item, out var look)) { MappingLog.Miss("EnumItem", item); continue; }
+            // 独特物品（用户 2026-11-07）有自己的模型：先找 uniqueItems，没填就用底子物品的外观并记一次缺失。
+            JsonElement look;
+            string at0;
+            if (unique != null && EquipUniques.TryGetValue(unique, out var u)) { look = u; at0 = $"equipment.json uniqueItems.{unique}"; }
+            else
+            {
+                if (unique != null) MappingLog.Miss("EnumUniqueItem", unique);
+                if (!EquipItems.TryGetValue(item, out look)) { MappingLog.Miss("EnumItem", item); continue; }
+                at0 = $"equipment.json items.{item}";
+            }
             // 物品可以指定自己的 WoW 槽（如弓放进远程槽，WoW 才拿在左手），不按 DQQ 的槽。
             var at = Str(look, "slot") is { } own && Slots.ContainsKey(own) ? own : wowSlot;
-            if (ParseItem(at, look, $"equipment.json items.{item}", []) is { } d) items.Add(d);
+            if (ParseItem(at, look, at0, []) is { } d) items.Add(d);
         }
         return HeroLook with { Items = items.ToArray() };
     }
+
+    /// <summary>DQQ 角色 DTO 的装备（<c>Equips</c>）穿到英雄身上：物品名、独特物品名（没有为 null）。</summary>
+    public static Dress HeroDress(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips) =>
+        HeroDress((equips ?? new Dictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>())
+            .Where(p => p.Value?.Profile != null)
+            .Select(p => (p.Key.ToString(), p.Value!.Profile!.ProfileNumber.ToString(),
+                p.Value.UniqueItemNumber == DQQ.Enums.EnumUniqueItem.None ? null : p.Value.UniqueItemNumber.ToString())));
 
     private static void LoadMaps(string path, List<string> errors)
     {

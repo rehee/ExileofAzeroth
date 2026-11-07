@@ -112,11 +112,14 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
     "<EnumItem 名>": 29958,                                            // 只写外观
     "<EnumItem 名>": { "display": 1628, "type": "twoHand", "weapon": "sword2h" },  // 或带放法、武器种类
     "<EnumItem 名>": { "display": 8102, "slot": "ranged", "type": "ranged", "weapon": "bow" }  // slot：物品自己定 WoW 槽
-  }
+  },
+  "uniqueItems": { "<EnumUniqueItem 名>": 35050 }   // 独特物品的外观，写法同 items
 }
 ```
 
 物品放到哪个 WoW 槽由 DQQ 角色把它装在哪个槽决定（`slots`；没写的槽不显示），`items` 里只写外观、放法（type，不写就按槽默认）和武器种类（weapon）。表里没有的物品不显示，日志记一次缺失。
+
+**EnumItem 的每一项是一件具体物品**，各自对应一个 WoW 外观（没有“套装风格”这种整体选项；挑外观时参考了哪套只是来源说明）。**独特物品**（物品带 `EnumUniqueItem`，用户 2026-11-07）有自己的模型：先找 `uniqueItems`，没填时用底子物品（EnumItem）的外观，日志记一次缺失。独特物品的外观由 Claude 先挑，用户看到不对再改。
 
 `"slot"`（可选）让物品自己决定 WoW 槽，盖过 `slots` 的映射。现在只有弓用：DQQ 把弓装在主手，WoW 的弓要放在远程槽（`ranged`），战斗时才会**左手持弓**、射箭（用户 2026-11-07）。只有远程武器的单位在战斗中拿出远程武器，攻击显示为"自动射击"（法术 75，带飞行的箭），不是近战挥砍。
 

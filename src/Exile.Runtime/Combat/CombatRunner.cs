@@ -46,12 +46,10 @@ public sealed class CombatRunner
         // 英雄的外观按种子里的角色 DTO（录像当时的装备，config/mapping/equipment.json 对应）。
         var heroes = (request.Creators ?? []).Where(c => c.Id != null).ToDictionary(
             c => c.Id!.Value.ToString(),
-            c => Visuals.Mapping.MappingFiles.HeroDress((c.Equips ?? [])
-                .Where(p => p.Value?.Profile != null)
-                .Select(p => (p.Key.ToString(), p.Value!.Profile!.ProfileNumber.ToString()))));
+            c => Visuals.Mapping.MappingFiles.HeroDress(c.Equips));
         foreach (var c in request.Creators ?? [])
             Console.WriteLine($"[combat] 种子英雄 {c.Id} {c.DisplayName}：DQQ 装备 " +
-                string.Join("、", (c.Equips ?? []).Select(p => $"{p.Key}={p.Value?.Profile?.ProfileNumber.ToString() ?? "空"}")) +
+                string.Join("、", (c.Equips ?? []).Select(p => $"{p.Key}={p.Value?.Profile?.ProfileNumber.ToString() ?? "空"}{(p.Value is { UniqueItemNumber: not DQQ.Enums.EnumUniqueItem.None } v ? $"（独特 {v.UniqueItemNumber}）" : "")}")) +
                 $"；显示 {(c.Id is { } id && heroes.TryGetValue(id.ToString(), out var d) ? d.Items.Length : 0)} 件");
         await onBegin(new CombatBegin(combatId, request.MapNumber.ToString(), watch ? "watch" : "background",
             DQQ.Consts.DQQGeneral.TickPerSecond, focusId, heroes));
