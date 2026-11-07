@@ -110,12 +110,17 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
   "slots": { "<EnumEquipSlot 名>": "<WoW 装备槽>" },   // 如 "Body": "chest"；项链、戒指不写 = 不显示
   "items": {
     "<EnumItem 名>": 29958,                                            // 只写外观
-    "<EnumItem 名>": { "display": 1628, "type": "twoHand", "weapon": "sword2h" }   // 或带放法、武器种类
+    "<EnumItem 名>": { "display": 1628, "type": "twoHand", "weapon": "sword2h" },  // 或带放法、武器种类
+    "<EnumItem 名>": { "display": 8102, "slot": "ranged", "type": "ranged", "weapon": "bow" }  // slot：物品自己定 WoW 槽
   }
 }
 ```
 
 物品放到哪个 WoW 槽由 DQQ 角色把它装在哪个槽决定（`slots`；没写的槽不显示），`items` 里只写外观、放法（type，不写就按槽默认）和武器种类（weapon）。表里没有的物品不显示，日志记一次缺失。
+
+`"slot"`（可选）让物品自己决定 WoW 槽，盖过 `slots` 的映射。现在只有弓用：DQQ 把弓装在主手，WoW 的弓要放在远程槽（`ranged`），战斗时才会**左手持弓**、射箭（用户 2026-11-07）。只有远程武器的单位在战斗中拿出远程武器，攻击显示为"自动射击"（法术 75，带飞行的箭），不是近战挥砍。
+
+**挑外观要确认模型和贴图都在**：`ItemDisplayInfo` 里有些行指向客户端数据里不存在的模型或贴图（例如 2461、8099 的短弓），游戏里会显示成**蓝白棋盘格**。挑好后在游戏里看一眼；`tools/logs/wow-dbc/files.txt` 是本机数据的文件列表，可以先查。
 
 **DQQ 新增装备槽的流程**（用户 2026-11-07）：用户通知 → Claude 在 `slots` 补一行，同时更新本文档（本节与 §2.3 的槽表）。runtime 对没写的槽不报警，靠这个流程保证不漏。
 

@@ -179,8 +179,10 @@ public static class MappingFiles
             foreach (var it in its.EnumerateObject())
             {
                 if (!Enum.TryParse<DQQ.Enums.EnumItem>(it.Name, out _)) errors.Add($"equipment.json items.{it.Name}：DQQ 没有这个物品（EnumItem），拼写？");
-                // 用 "mainHand" 试解析一次，只为检查写法；真正的槽位在穿上时由 DQQ 装备槽决定。
-                ParseItem("mainHand", it.Value, $"equipment.json items.{it.Name}", errors);
+                // 试解析一次，只为检查写法；真正的槽位在穿上时由 DQQ 装备槽决定（物品写了 slot 就用它的）。
+                var own = Str(it.Value, "slot");
+                if (own != null && !Slots.ContainsKey(own)) errors.Add($"equipment.json items.{it.Name}.slot：不认识的装备槽 \"{own}\"");
+                ParseItem(own != null && Slots.ContainsKey(own) ? own : "mainHand", it.Value, $"equipment.json items.{it.Name}", errors);
                 items[it.Name] = it.Value.Clone();
             }
         EquipSlots = slots;
@@ -198,7 +200,9 @@ public static class MappingFiles
         {
             if (!EquipSlots.TryGetValue(slot, out var wowSlot)) continue;  // 项链、戒指：不显示
             if (!EquipItems.TryGetValue(item, out var look)) { MappingLog.Miss("EnumItem", item); continue; }
-            if (ParseItem(wowSlot, look, $"equipment.json items.{item}", []) is { } d) items.Add(d);
+            // 物品可以指定自己的 WoW 槽（如弓放进远程槽，WoW 才拿在左手），不按 DQQ 的槽。
+            var at = Str(look, "slot") is { } own && Slots.ContainsKey(own) ? own : wowSlot;
+            if (ParseItem(at, look, $"equipment.json items.{item}", []) is { } d) items.Add(d);
         }
         return HeroLook with { Items = items.ToArray() };
     }

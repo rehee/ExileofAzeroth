@@ -52,10 +52,10 @@
     "CorrodedBlade":      { "display": 1628, "type": "twoHand", "weapon": "sword2h" },  // Sword_2H_Claymore_A_02
     "LitheBlade":         { "display": 5057, "type": "twoHand", "weapon": "sword2h" },  // Sword_2H_Katana_B_01
     "EngravedGreatsword": { "display": 1203, "type": "twoHand", "weapon": "sword2h" },  // Sword_2H_Broadsword_A_01
-    // ---- 弓（DQQ 弓在主手；WoW 的弓拿在左手）----
-    "ShortBow":   { "display": 2461, "type": "ranged", "weapon": "bow" },  // Bow_Short_A_01
-    "LongBow":    { "display": 2794, "type": "ranged", "weapon": "bow" },  // Bow_1H_Standard_B_01Orange
-    "DecurveBow": { "display": 2826, "type": "ranged", "weapon": "bow" },  // Bow_1H_Standard_C_01Red
+    // ---- 弓：DQQ 的弓装在主手；放进 WoW 的远程槽（"slot": "ranged"），战斗时拿在左手（用户 2026-11-07）----
+    "ShortBow":   { "display": 8102, "slot": "ranged", "type": "ranged", "weapon": "bow" },  // Bow_1H_Short_A_01Red（2461/8099 的模型或贴图在客户端数据里不存在，显示成棋盘格）
+    "LongBow":    { "display": 2794, "slot": "ranged", "type": "ranged", "weapon": "bow" },  // Bow_1H_Standard_B_01Orange
+    "DecurveBow": { "display": 2826, "slot": "ranged", "type": "ranged", "weapon": "bow" },  // Bow_1H_Standard_C_01Red
     // ---- 长杖 ----
     "LongStaff":    { "display": 472,  "type": "twoHand", "weapon": "staff" },  // Stave_2H_Long_A_01Teal
     "RoyalStaff":   { "display": 1648, "type": "twoHand", "weapon": "staff" },  // Stave_2H_Jeweled_B_01Red
