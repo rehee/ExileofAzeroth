@@ -214,7 +214,7 @@ public static class MappingFiles
             {
                 var at = $"maps.json scenes.{sc.Name}";
                 var map = Int(sc.Value, "map") ?? 0;
-                if (map != 0) errors.Add($"{at}：目前只支持 WoW 地图 0（东部王国）");
+                if (map < 0) errors.Add($"{at}：map 应为 WoW 地图 id（Map.dbc：0 东部王国、1 卡利姆多……）");
                 if (!sc.Value.TryGetProperty("center", out var c) || c.ValueKind != JsonValueKind.Array || c.GetArrayLength() < 2
                     || !c[0].TryGetDouble(out var x) || !c[1].TryGetDouble(out var y))
                 { errors.Add($"{at}：center 应为 [x, y]"); continue; }
