@@ -73,4 +73,26 @@ public static class MappingReport
         md.AppendLine(string.Join("、", keys));
         md.AppendLine();
     }
+
+    /// <summary>DQQ 全部技能的定义（标签、形状、元素、是否怪物专用），D 建技能表用：录像里没出现的技能也能先按规则分好类。
+    /// 要 DQQ 对象池已建好（DqqHost 之后），所以由 <c>--event-stats</c> 输出。</summary>
+    internal static void SkillCatalog(System.Text.StringBuilder md)
+    {
+        md.AppendLine("## 技能定义（DQQ SkillProfile，供 D 建表）");
+        md.AppendLine();
+        md.AppendLine("| 技能 | 名字 | 怪物专用 | 标签 | 形状 | 元素 | 投射物类型 | 持续效果 |");
+        md.AppendLine("|---|---|---|---|---|---|---|---|");
+        foreach (var n in Enum.GetValues<EnumSkillNumber>())
+        {
+            if (n == EnumSkillNumber.NotSpecified) continue;
+            DQQ.Profiles.Skills.SkillProfile? p = null;
+            try { p = DQQ.Pools.DQQPool.TryGet<DQQ.Profiles.Skills.SkillProfile, EnumSkillNumber>(n); } catch (Exception ex) { md.AppendLine($"| {n} | 读取失败：{ex.GetType().Name} {ex.Message} | | | | | | |"); continue; }
+            if (p == null) { md.AppendLine($"| {n} | （没有定义） | | | | | | |"); continue; }
+            string Safe(Func<string> f) { try { return f(); } catch { return "?"; } }
+            md.AppendLine($"| {n} | {Safe(() => p.SkillName ?? "")} | {Safe(() => p.NoPlayerSkill ? "是" : "")} | " +
+                $"{Safe(() => string.Join(" ", p.OriginalTag))} | {Safe(() => p.SkillShape.ToString())} | " +
+                $"{Safe(() => p.DamageType?.ToString() ?? "")} | {Safe(() => p.ProjectType?.ToString() ?? "")} | {Safe(() => p.DurationNumber?.ToString() ?? "")} |");
+        }
+        md.AppendLine();
+    }
 }

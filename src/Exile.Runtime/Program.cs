@@ -38,6 +38,16 @@ if (options.TestUser != null && options.TestPassword != null)
 else Console.WriteLine("[runtime] 未配置测试账号，跳过登录");
 
 if (options.SelfTest) return await SelfTest.RunAsync(dqq);
+if (options.EventStats)
+{
+    var root = options.ConfigPath != null ? Path.GetDirectoryName(Path.GetDirectoryName(options.ConfigPath)) : null;
+    var dir = root != null ? Path.Combine(root, "tools", "logs") : AppContext.BaseDirectory;
+    Directory.CreateDirectory(dir);
+    var path = Path.Combine(dir, "event-stats.md");
+    File.WriteAllText(path, await EventStats.Build(new Exile.Runtime.Replays.ReplayFiles(options.ReplaysDir)));
+    Console.WriteLine($"[runtime] 技能事件统计已写到 {path}");
+    return 0;
+}
 
 using var cts = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };

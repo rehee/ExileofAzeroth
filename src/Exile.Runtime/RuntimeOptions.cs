@@ -11,6 +11,8 @@ public sealed class RuntimeOptions
     public bool Stay { get; set; }
     /// <summary>--mapping-report：写出 DQQ ↔ WoW 对应表的现状（tools/logs/mapping-report.md）后退出。</summary>
     public bool MappingReport { get; set; }
+    /// <summary>--event-stats：后台重放录像目录里的每个录像，统计技能事件（PLAN-0006 D），写 tools/logs/event-stats.md。</summary>
+    public bool EventStats { get; set; }
     /// <summary>--mapping：对应表配置目录（默认仓库的 config/mapping，找不到时用 runtime 旁的 mapping/）。</summary>
     public string? MappingDir { get; set; }
     public string? ConfigPath { get; set; }
@@ -31,6 +33,7 @@ public sealed class RuntimeOptions
                 case "--selftest": o.SelfTest = true; break;
                 case "--stay": o.Stay = true; break;
                 case "--mapping-report": o.MappingReport = true; break;
+                case "--event-stats": o.EventStats = true; break;
                 case "--mapping": o.MappingDir = args[++i]; break;
                 case "--config": o.ConfigPath = args[++i]; break;
                 case "--replays": o.ReplaysDir = args[++i]; break;

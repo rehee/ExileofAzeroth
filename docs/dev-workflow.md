@@ -44,6 +44,7 @@
 | `client-run` | 以普通方式运行客户端（不进 Exile 模式） | |
 | `exile-play` | 一键运行：编译并后台启动 runtime → Exile 模式启动客户端 | 见 §4 |
 | `mapping-report` | 编译 runtime 并输出 DQQ ↔ WoW 对应表的现状与缺失项（PLAN-0006） | 结果 `tools/logs/mapping-report.md`；不登录 DQQ |
+| `event-stats` | 编译 runtime，后台重放 `replays/` 的录像，统计技能事件，并列出 DQQ 全部技能的定义（PLAN-0006 D） | 结果 `tools/logs/event-stats.md`；会登录 DQQ |
 | `wow-dbc` | 编译 `benilla-extract`，从本机 WoW 数据导出 DBC 原文件（生物外观、法术、动画、物品外观……） | 结果 `tools/logs/wow-dbc/`（只供本地分析，不入库、不分发） |
 | `wow-blp` | 把 `tools/logs/wow-blp.txt` 里列出的贴图转成 PNG 到 `tools/logs/wow-blp/` | 选肤色、看贴图用；先跑过 `wow-dbc`（它编译 `benilla-extract`） |
 | `commit-push` | 提交并推送；有 `tools/commit-message-client.txt` 时先提交推送 `client` 子模块 | 提交信息文件用后删除（已忽略） |
@@ -111,5 +112,6 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 | 日期 | 修改人 | 说明 |
 |------|--------|------|
 | 2026-11-07 | Claude | 新增 `mapping-report`、`wow-dbc` 脚本与 `.lineup` 审阅命令（PLAN-0006） |
+| 2026-11-07 | Claude | 新增 `event-stats` 脚本（PLAN-0006 D） |
 | 2026-11-06 | Claude | 补充：加载画面最短 0.5 秒、诊断探针、按键绑定问题与修复 |
 | 2026-11-06 | Claude | 初稿 |
