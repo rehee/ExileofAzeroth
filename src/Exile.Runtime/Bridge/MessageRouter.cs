@@ -1,5 +1,6 @@
 ﻿using DQQ.Components.Stages.Actors.Characters;
 using DQQ.Enums;
+using DQQ.Helper;
 using Exile.Runtime.Combat;
 using Exile.Runtime.Dqq;
 using Exile.Runtime.Protocol;
@@ -94,6 +95,12 @@ public sealed class MessageRouter
                 await Send(conn, "ui.mapping.mobs.result", msg.Seq, Visuals.Mapping.MobLooks.Table
                     .Select(kv => new MobLookEntry(kv.Key, kv.Value.DisplayId, Visuals.Mapping.MobLooks.IsBoss(kv.Key), kv.Value.Dress)).ToArray(), ct);
                 break;
+            case "combat.prepare":
+                // 先问战场（PLAN-0006 E）：客户端传送到那里，加载完再发 combat.replay。
+                Visuals.Mapping.MappingFiles.Refresh();
+                var pr = msg.Data?.Deserialize<CombatPrepareRequest>(ProtocolJson.Options) ?? new CombatPrepareRequest(null, null);
+                await Send(conn, "combat.prepare.result", msg.Seq, await Prepare(pr), ct);
+                break;
             case "combat.replay":
                 Visuals.Mapping.MappingFiles.Refresh();
                 var rr = msg.Data?.Deserialize<CombatReplayRequest>(ProtocolJson.Options) ?? new CombatReplayRequest(null, null, null);
@@ -147,6 +154,28 @@ public sealed class MessageRouter
     }
 
     /// <summary>回放一场录像（D28）；找不到录像时用该角色开一场新战斗，便于验证。</summary>
+    /// <summary>录像（或没有录像时的新战斗）的 DQQ 地图 → 战场。</summary>
+    private async Task<Battlefield?> Prepare(CombatPrepareRequest req)
+    {
+        try
+        {
+            var charId = Guid.TryParse(req.CharacterId, out var c) ? c : (Guid?)null;
+            var replay = !string.IsNullOrEmpty(req.File)
+                ? await files.Load(req.File)
+                : await dqq.GetReplay(Guid.TryParse(req.ReplayId, out var r) ? r : null, charId);
+            using var request = replay?.GetReplayRequestDTO();
+            var map = request?.MapNumber ?? EnumMapNumber.Map_1_1;
+            var field = Visuals.Mapping.MappingFiles.FieldFor(map.ToString());
+            Console.WriteLine($"[combat] 战场：DQQ 地图 {map} → {field?.Scene ?? "（默认）"}");
+            return field;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"[combat] 取战场出错，用默认战场：{e.Message}");
+            return null;
+        }
+    }
+
     private void StartReplay(BridgeConnection conn, long re, CombatReplayRequest req, CancellationToken ct)
     {
         combatCts?.Cancel();

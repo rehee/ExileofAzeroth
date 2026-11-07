@@ -38,7 +38,9 @@ public static class MappingReport
         Pending(md, "技能形状 EnumSkillShape", Names<EnumSkillShape>(skip: "NotSpecified"));
         Pending(md, "元素 EnumDamageType", Names<EnumDamageType>());
         Pending(md, "持续效果 EnumDurationNumber", Names<EnumDurationNumber>());
-        Pending(md, "地图 EnumMapNumber", Names<EnumMapNumber>(skip: "None"));
+        Section(md, "地图 EnumMapNumber → 战场场景", Names<EnumMapNumber>(skip: "None"), MappingFiles.MapScenes.ContainsKey,
+            k => MappingFiles.MapScenes.TryGetValue(k, out var sc) && MappingFiles.Scenes.TryGetValue(sc, out var b)
+                ? $"{sc} | ({b.Center[0]:F1}, {b.Center[1]:F1}) | {b.Note}" : null, "场景 | 中心 | 说明");
         return md.ToString();
     }
 

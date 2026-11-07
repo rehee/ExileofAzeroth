@@ -66,4 +66,13 @@ public sealed record CombatStats(int Frames, double SimulateMs, double AvgFrameB
 public sealed record ErrorData(string Message);
 
 /// <summary><c>ui.mapping.mobs.result</c> 的一项：DQQ 怪物名、生物外观 id、是否首领（审阅时画大一些）。</summary>
+/// <summary>
+/// 一场战斗的战场（<c>combat.prepare.result</c>，config/mapping/maps.json）：DQQ 地图、WoW 场景名、WoW 地图 id、
+/// 中心 [x, y, z]（z 由客户端按地面高度取）、说明。
+/// </summary>
+public sealed record Battlefield(string Map, string Scene, int WowMap, double[] Center, string Note);
+
+/// <summary><c>combat.prepare</c>：和 <c>combat.replay</c> 同样指定录像，只问它的战场。</summary>
+public sealed record CombatPrepareRequest(string? ReplayId, string? CharacterId, string? File = null);
+
 public sealed record MobLookEntry(string Mob, int DisplayId, bool Boss, Dress? Dress = null);

@@ -36,6 +36,18 @@ public static class MappingFiles
     /// <summary>DQQ 物品名 → 外观（槽位由 DQQ 装备槽决定，这里只存外观、放法、武器种类）。</summary>
     public static IReadOnlyDictionary<string, JsonElement> EquipItems { get; private set; } = new Dictionary<string, JsonElement>();
 
+    /// <summary>战场场景（maps.json 的 scenes）与 DQQ 地图 → 场景名。</summary>
+    public static IReadOnlyDictionary<string, Battlefield> Scenes { get; private set; } = new Dictionary<string, Battlefield>();
+    public static IReadOnlyDictionary<string, string> MapScenes { get; private set; } = new Dictionary<string, string>();
+    public static string SceneFallback { get; private set; } = "forest";
+
+    /// <summary>一张 DQQ 地图的战场；表里没有时用回退场景并记一次缺失，回退也没有时为 null（客户端用默认战场）。</summary>
+    public static Battlefield? FieldFor(string map)
+    {
+        if (!MapScenes.TryGetValue(map, out var scene)) { MappingLog.Miss("EnumMapNumber", map); scene = SceneFallback; }
+        return Scenes.TryGetValue(scene, out var b) ? b with { Map = map } : null;
+    }
+
     /// <summary>最近一次读取的问题（文件缺失、JSON 错、引用了不存在的外观……）。</summary>
     public static IReadOnlyList<string> Errors { get; private set; } = [];
 
@@ -65,8 +77,9 @@ public static class MappingFiles
             LoadMobs(Path.Combine(Dir, "mobs.json"), errors);
             LoadClasses(Path.Combine(Dir, "classes.json"), errors);
             LoadEquipment(Path.Combine(Dir, "equipment.json"), errors);
+            LoadMaps(Path.Combine(Dir, "maps.json"), errors);
             Errors = errors;
-            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}" +
+            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}、战场 {Scenes.Count}" +
                 (errors.Count == 0 ? "" : $"，{errors.Count} 个问题"));
             foreach (var e in errors) Console.WriteLine($"[mapping] 问题：{e}");
         }
@@ -188,6 +201,40 @@ public static class MappingFiles
             if (ParseItem(wowSlot, look, $"equipment.json items.{item}", []) is { } d) items.Add(d);
         }
         return HeroLook with { Items = items.ToArray() };
+    }
+
+    private static void LoadMaps(string path, List<string> errors)
+    {
+        using var doc = Read(path, errors);
+        if (doc == null) return;
+        var root = doc.RootElement;
+        var scenes = new Dictionary<string, Battlefield>();
+        if (root.TryGetProperty("scenes", out var ss) && ss.ValueKind == JsonValueKind.Object)
+            foreach (var sc in ss.EnumerateObject())
+            {
+                var at = $"maps.json scenes.{sc.Name}";
+                var map = Int(sc.Value, "map") ?? 0;
+                if (map != 0) errors.Add($"{at}：目前只支持 WoW 地图 0（东部王国）");
+                if (!sc.Value.TryGetProperty("center", out var c) || c.ValueKind != JsonValueKind.Array || c.GetArrayLength() < 2
+                    || !c[0].TryGetDouble(out var x) || !c[1].TryGetDouble(out var y))
+                { errors.Add($"{at}：center 应为 [x, y]"); continue; }
+                double? z = c.GetArrayLength() > 2 && c[2].TryGetDouble(out var zv) ? zv : null;
+                scenes[sc.Name] = new Battlefield("", sc.Name, map, [x, y, z ?? 0], Str(sc.Value, "note") ?? "");
+            }
+        var maps = new Dictionary<string, string>();
+        if (root.TryGetProperty("maps", out var ms) && ms.ValueKind == JsonValueKind.Object)
+            foreach (var m in ms.EnumerateObject())
+            {
+                if (!Enum.TryParse<DQQ.Enums.EnumMapNumber>(m.Name, out _)) errors.Add($"maps.json maps.{m.Name}：DQQ 没有这张地图（EnumMapNumber），拼写？");
+                var scene = m.Value.GetString() ?? "";
+                if (!scenes.ContainsKey(scene)) errors.Add($"maps.json maps.{m.Name}：scenes 里没有 \"{scene}\"");
+                maps[m.Name] = scene;
+            }
+        var fallback = Str(root, "fallback") ?? "forest";
+        if (!scenes.ContainsKey(fallback)) errors.Add($"maps.json fallback：scenes 里没有 \"{fallback}\"");
+        Scenes = scenes;
+        MapScenes = maps;
+        SceneFallback = fallback;
     }
 
     // ---- 穿装备的人形 ----

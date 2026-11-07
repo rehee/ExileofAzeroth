@@ -16,6 +16,7 @@
   - `mobs.json`：DQQ 怪物（`EnumMob`）→ WoW 外观
   - `classes.json`：DQQ 战斗风格（`EnumCombatArcheType`）→ WoW 职业
   - `equipment.json`：英雄的统一外观，DQQ 装备槽与物品（`EnumEquipSlot`、`EnumItem`）→ WoW 装备外观
+  - `maps.json`：DQQ 地图（`EnumMapNumber`）→ WoW 战场场景
   - 以后的技能、元素、地图等各加一份，格式同样写进本文档。
 - 谁读：Exile Runtime（C#，`src/Exile.Runtime/Visuals/Mapping/MappingFiles.cs`）。客户端（Rust）不认识 DQQ，只执行 runtime 发来的外观（display id、`dress`）。
 - 查找顺序：`--mapping <目录>` → 仓库里的 `config/mapping/`（从 runtime 所在目录往上找）→ runtime 旁的 `mapping/`（编译时自动复制过去，供以后的发布包使用）。
@@ -114,11 +115,29 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 }
 ```
 
-物品放到哪个 WoW 槽由 DQQ 角色把它装在哪个槽决定（`slots`；DQQ 以后新增的槽在这里补一行即可，没写的槽不显示），`items` 里只写外观、放法（type，不写就按槽默认）和武器种类（weapon）。表里没有的物品不显示，日志记一次缺失。
+物品放到哪个 WoW 槽由 DQQ 角色把它装在哪个槽决定（`slots`；没写的槽不显示），`items` 里只写外观、放法（type，不写就按槽默认）和武器种类（weapon）。表里没有的物品不显示，日志记一次缺失。
+
+**DQQ 新增装备槽的流程**（用户 2026-11-07）：用户通知 → Claude 在 `slots` 补一行，同时更新本文档（本节与 §2.3 的槽表）。runtime 对没写的槽不报警，靠这个流程保证不漏。
 
 装备从哪来（用户 2026-11-07）：
 - **选人界面、自由模式**：DQQ 角色服务给的 `CharacterDTO` 的装备（现在穿着的）。
 - **战斗（回放）**：录像种子里的角色 DTO（`CombatRequestDTO.Creators`，录像当时穿着的），所以看别人的录像文件也是别人的装备；回到自由模式后换回自己现在的装备。
+
+### 2.5 `maps.json`
+
+```jsonc
+{
+  "fallback": "forest",                       // 表里没有的地图用的场景
+  "scenes": {
+    "<场景名>": { "map": 0, "center": [x, y], "note": "说明" }   // map 目前只支持 0（东部王国）；高度取地面
+  },
+  "maps": { "<EnumMapNumber 名>": "<场景名>" }
+}
+```
+
+战场是以 `center` 为中心、边长 20 码的方块（DQQ 战场 10×10 单位，每单位 2 码）。开打前客户端先问 runtime 这场录像的战场（`combat.prepare`），再传送过去；问不到时用上一次的战场。
+
+**找平整的中心点**：自由模式聊天框 `.goto x y` 传送过去，日志（`tools/logs/exile-play.log`，搜 `exile: goto`）记录周围 ±10 码的地面高差；`.goto x y 半径` 在半径内按 10 码网格找高差最小的点传送过去（候选前 5 名记在日志里，搜 `flat spot`）。注意：高差只看地形，不看房子、树、栅栏等摆件，选好后要在游戏里看一眼。高差 1 码左右可以接受。打完一场后会回到最后一次 `.goto` 的地方。
 
 ## 3. 怎么找 id
 
@@ -144,3 +163,4 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 |------|--------|------|
 | 2026-11-07 | Claude | 初稿：对应表改为配置文件（mobs、classes），含穿装备的人形 |
 | 2026-11-07 | Claude | 新增 equipment.json（英雄外观与装备，§2.4） |
+| 2026-11-07 | Claude | 新增 maps.json（战场场景，§2.5）与 `.goto` 选点 |

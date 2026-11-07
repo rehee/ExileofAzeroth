@@ -75,6 +75,9 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 ### 4.0.1 对应表审阅（`.lineup`）
 对应表是配置文件 `config/mapping/*.json`，改完保存即可，格式与找 id 的方法见 `docs/mapping-config.md`。自由模式下聊天框输入：`.lineup mobs [怪物名…]` 把 `config/mapping/mobs.json` 里的每个怪物（写了名字就只摆这几个，如 `.lineup mobs UnName CowKing`）排在面前，鼠标指上去显示 DQQ 怪物名，首领按首领体型显示；`.lineup [size=N] <display id> …` 把任意生物外观排成一排（名字 `#id`，`size` 为 DQQ 体型），用来比较候选；`.lineup` 清掉。
 
+### 4.0.2 选战场（`.goto`）
+自由模式聊天框 `.goto x y [半径]`：传送到东部王国的 (x, y)（带半径时找半径内最平的点），日志记录周围 ±10 码的高差，用来给 `config/mapping/maps.json` 选战场中心（`docs/mapping-config.md` §2.5）。
+
 ### 4.1 诊断探针（开发版客户端自带）
 
 `config/dev.local.json` 的 `probe.key` / `probe.lua` 由 `exile-play` 转成 `WOW_PROBE_KEY` / `WOW_PROBE_LUA`：

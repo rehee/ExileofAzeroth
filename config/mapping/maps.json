@@ -1,0 +1,25 @@
+// DQQ 地图（EnumMapNumber）→ WoW 战场场景（PLAN-0006 E）。字段说明见 docs/mapping-config.md §2.5。
+// 场景按主题选（用户 2026-11-07：3~5 个），中心点要平整：游戏里 `.goto x y` 过去，日志会记录周围 ±10 码的高差。
+{
+  // 表里没有的地图用它。
+  "fallback": "forest",
+
+  // 场景：map = WoW 地图 id（目前只支持 0 东部王国），center = 战场中心 [x, y]（高度取地面），facing 暂不用。
+  "scenes": {
+    "forest":  { "map": 0, "center": [-8934.95, -117.49], "note": "艾尔文森林·北郡修道院前的草地（原验证战场）" },
+    "coast":   { "map": 0, "center": [-10720.0, 2090.0],  "note": "西部荒野·长滩，沉船旁的沙滩（±10 码高差 1.6 码）" },
+    "den":     { "map": 0, "center": [-11046.0, 1510.0],  "note": "西部荒野·月溪镇，喷泉南边的空地（地精、迪菲亚的据点）" },
+    "plains":  { "map": 0, "center": [-10130.0, 1090.0],  "note": "西部荒野·萨丁农场的农田（平原，高差 0.1 码）" },
+    "rift":    { "map": 0, "center": [-10530.0, 240.0],   "note": "暮色森林·渡鸦岭墓地（裂隙、秘境、奶牛关；高差 1.0 码）" }
+  },
+
+  // 每张 DQQ 地图用哪个场景。
+  "maps": {
+    "Map_1_1": "coast", "Map_1_2": "coast", "Map_1_3": "coast", "Map_1_4": "coast", "Map_1_5": "coast", "Map_1_6": "coast",
+    "Map_2_1": "den", "Map_2_2": "den", "Map_2_3": "den", "Map_2_4": "den",
+    "PlanMap_1": "plains", "PlanMap_2": "plains", "PlanMap_3": "plains", "PlanMap_4": "plains", "PlanMap_5": "plains",
+    "RiftMap_99": "rift", "CowLevel": "rift", "Map_Infinity_Tower": "rift", "Map_GreaterRift": "rift",
+    "Map_TrainingGround_1": "forest", "Tutorial00": "forest", "Tutorial01": "forest",
+    "OfflineCompensation": "forest", "DuelArena": "forest"
+  }
+}
