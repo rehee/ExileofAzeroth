@@ -244,9 +244,10 @@ public static class SkillLooks
     /// </summary>
     public static SkillPlay Area(string? shape, string action, string? element, IReadOnlyCollection<string> tags, double range)
     {
-        if (shape == null || action is "nova" or "spin" or "channel")
+        if (shape == null)
             return new SkillPlay("none", 0, School(element));
         // 散射：从散射的出发点（如火球爆炸中心）向结束处画射线，形态和颜色按技能标签（用户 2026-11-07）。
+        // 引导技能（奥术洪流）的散射也画：每个被选中的目标一道光束。
         if (rays.TryGetValue(shape, out var ray))
         {
             var key = PickKey(ray, element, tags);
@@ -257,7 +258,7 @@ public static class SkillLooks
                 Channel = key == null || !rayCasts.Contains((shape, key)),
             };
         }
-        if (Band(shape, range) is not { } a)
+        if (action is "nova" or "spin" or "channel" || Band(shape, range) is not { } a)
             return new SkillPlay("none", 0, School(element));
         // 按技能标签选（用户 2026-11-07）：先看元素，再看其他标签（如 Melee → 冲击波），最后 "*"。
         var spell = Pick(a.Spell, element, tags);

@@ -17,7 +17,7 @@ try {
     $out = Join-Path $PSScriptRoot 'logs\wow-dbc'
     New-Item -ItemType Directory -Force $out | Out-Null
     $names = 'CreatureDisplayInfo','CreatureDisplayInfoExtra','CreatureModelData','CreatureFamily','CreatureType',
-             'Spell','SpellVisual','SpellVisualKit','SpellVisualEffectName','SpellIcon','SpellCastTimes','SpellMissile',
+             'Spell','SpellChainEffects','SpellVisual','SpellVisualKit','SpellVisualEffectName','SpellIcon','SpellCastTimes','SpellMissile',
              'AnimationData','ItemDisplayInfo','CharSections','CharHairGeosets','ChrRaces','ChrClasses','AreaTable','Map','Lock'
     foreach ($n in $names) {
         try { Invoke-Exile $exe @($data, 'extract', "DBFilesClient\$n.dbc", (Join-Path $out "$n.dbc")) } catch { Write-ExileLog "跳过 $n：$_" }
