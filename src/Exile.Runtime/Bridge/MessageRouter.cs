@@ -165,7 +165,11 @@ public sealed class MessageRouter
                 : await dqq.GetReplay(Guid.TryParse(req.ReplayId, out var r) ? r : null, charId);
             using var request = replay?.GetReplayRequestDTO();
             var map = request?.MapNumber ?? EnumMapNumber.Map_1_1;
-            var field = Visuals.Mapping.MappingFiles.FieldFor(map.ToString());
+            var field = !string.IsNullOrEmpty(req.Scene) && Visuals.Mapping.MappingFiles.Scenes.TryGetValue(req.Scene, out var forced)
+                ? forced with { Map = map.ToString() }
+                : Visuals.Mapping.MappingFiles.FieldFor(map.ToString());
+            if (!string.IsNullOrEmpty(req.Scene) && field?.Scene != req.Scene)
+                Console.WriteLine($"[combat] 没有场景 {req.Scene}，按录像的地图选战场");
             Console.WriteLine($"[combat] 战场：DQQ 地图 {map} → {field?.Scene ?? "（默认）"}");
             return field;
         }

@@ -73,7 +73,7 @@ public sealed record ErrorData(string Message);
 /// <param name="Clear">战斗期间清掉小摆件（石头、树、碎墙……）的正方形边长，码；null = 客户端默认 200（DQQ 战场最大 100×100 单位）；0 = 不清。</param>
 public sealed record Battlefield(string Map, string Scene, int WowMap, double[] Center, string Note, double? Clear = null);
 
-/// <summary><c>combat.prepare</c>：和 <c>combat.replay</c> 同样指定录像，只问它的战场。</summary>
-public sealed record CombatPrepareRequest(string? ReplayId, string? CharacterId, string? File = null);
+/// <summary><c>combat.prepare</c>：和 <c>combat.replay</c> 同样指定录像，只问它的战场；<c>Scene</c> 指定时改用该场景（测试用，聊天命令 <c>.replay 场景名</c>）。</summary>
+public sealed record CombatPrepareRequest(string? ReplayId, string? CharacterId, string? File = null, string? Scene = null);
 
 public sealed record MobLookEntry(string Mob, int DisplayId, bool Boss, Dress? Dress = null);
