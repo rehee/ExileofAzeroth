@@ -160,12 +160,20 @@ public sealed class CombatRunner
         var look = Visuals.Mapping.SkillLooks.ElementFor(tagNames, defined, element);
         var play = Visuals.Mapping.SkillLooks.Play(skill?.SkillNumber?.ToString(), tagNames, look,
             from != null && weapons.TryGetValue(from, out var w) ? w : null, from != null && enemies.Contains(from));
+        // 技能区域日志：在区域中心播区域特效（火球爆炸、尸爆……，用户 2026-11-07）。
+        var shape = log.SkillShape?.SkillShape.ToString();
+        var scale = 1.0;
+        if (log.LogType == EnumLogType.SkillRangeAndTarget)
+        {
+            scale = Visuals.Mapping.SkillLooks.AreaScale(shape, log.SkillShape?.Range ?? 0);
+            play = Visuals.Mapping.SkillLooks.Area(shape, play.Action, look);
+        }
         return new CombatEvent(log.Id.ToString(), log.ActionTick ?? tick, log.LogType.ToString(),
             log.From?.Id?.ToString(), log.Target?.Id?.ToString(), skill?.SkillNumber?.ToString(),
             tagNames, skill?.RenderPhase, log.SkillShape?.SkillShape.ToString(),
             log.SkillShape?.Range ?? skill?.SkillArea ?? 0, log.SkillShape?.CenterX, log.SkillShape?.CenterY,
             element, amount, d?.IsCritical == true, d?.IsKilled == true, log.Success,
             skill?.DurationNumber?.ToString(), play.Action, play.Spell,
-            log.LogType == EnumLogType.DamageTaken ? Visuals.Mapping.SkillLooks.School(element) : play.School);
+            log.LogType == EnumLogType.DamageTaken ? Visuals.Mapping.SkillLooks.School(element) : play.School, scale);
     }
 }

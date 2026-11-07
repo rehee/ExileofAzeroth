@@ -19,9 +19,10 @@ public static class SkillLooks
     private static Dictionary<string, Dictionary<string, int>> actions = new();
     private static Dictionary<string, (string? Action, Dictionary<string, int>? Spell)> skills = new();
     private static Dictionary<string, int> durations = new();
+    private static Dictionary<string, (Dictionary<string, int> Spell, double Radius)> areas = new();
 
     /// <summary>读取结果的一句话（runtime 日志）。</summary>
-    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}";
+    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}";
 
     public static IReadOnlyDictionary<string, (int School, string Note)> Elements => elements;
     public static IReadOnlyDictionary<string, (string? Action, Dictionary<string, int>? Spell)> Skills => skills;
@@ -80,7 +81,27 @@ public static class SkillLooks
                 else errors.Add($"{at}：要写 WoW 法术 id（数字，或 {{ \"start\": id }}）");
             }
 
+        var ars = new Dictionary<string, (Dictionary<string, int>, double)>();
+        if (root.TryGetProperty("areas", out var ar) && ar.ValueKind == JsonValueKind.Object)
+            foreach (var a in ar.EnumerateObject())
+            {
+                var at = $"{file} areas.{a.Name}";
+                if (!Enum.TryParse<DQQ.Enums.EnumSkillShape>(a.Name, out _)) errors.Add($"{at}：DQQ 没有这个技能形状（EnumSkillShape）");
+                var radius = 8.0;
+                var spells = new Dictionary<string, int>();
+                if (a.Value.ValueKind == JsonValueKind.Object)
+                    foreach (var p in a.Value.EnumerateObject())
+                    {
+                        if (p.Name == "radius") { if (p.Value.TryGetDouble(out var r) && r > 0) radius = r; else errors.Add($"{at}.radius：要写正数（码）"); continue; }
+                        if (p.Name != "*" && !els.ContainsKey(p.Name)) errors.Add($"{at}.{p.Name}：不认识的元素");
+                        if (p.Value.TryGetInt32(out var id)) spells[p.Name] = id; else errors.Add($"{at}.{p.Name}：要写 WoW 法术 id");
+                    }
+                else errors.Add($"{at}：要写 {{ \"Fire\": id, \"*\": id, \"radius\": 码 }}");
+                ars[a.Name] = (spells, radius);
+            }
+
         elements = els;
+        areas = ars;
         actions = acts;
         skills = sks;
         durations = durs;
@@ -153,6 +174,23 @@ public static class SkillLooks
             if (tags.Contains(tag)) return el;
         return defined ?? fromDamage;
     }
+
+    /// <summary>
+    /// 技能区域（<c>SkillRangeAndTarget</c> 日志：形状、半径、中心）的演法：在中心播 <c>areas</c> 里该形状 × 元素的法术，
+    /// 按半径缩放（<see cref="SkillPlay"/> 的第二个值为法术，缩放另算见 <see cref="AreaScale"/>）。
+    /// 新星、旋风斩、引导自己已有范围表现，不重复；没配的形状不播。
+    /// </summary>
+    public static SkillPlay Area(string? shape, string action, string? element)
+    {
+        if (shape == null || action is "nova" or "spin" or "channel" || !areas.TryGetValue(shape, out var a))
+            return new SkillPlay("none", 0, School(element));
+        var spell = element != null && a.Spell.TryGetValue(element, out var s) ? s : a.Spell.GetValueOrDefault("*");
+        return new SkillPlay(spell > 0 ? "area" : "none", spell, School(element));
+    }
+
+    /// <summary>区域特效的缩放：DQQ 半径（单位，1 单位 = 2 码）÷ 特效本身的半径（码）。</summary>
+    public static double AreaScale(string? shape, double range) =>
+        shape != null && areas.TryGetValue(shape, out var a) ? Math.Clamp(range * 2 / a.Radius, 0.3, 4) : 1;
 
     /// <summary>一个技能事件的演法。</summary>
     public static SkillPlay Play(string? skill, IReadOnlyCollection<string> tags, string? element, string? weapon, bool enemy)
