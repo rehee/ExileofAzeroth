@@ -75,8 +75,10 @@
     // ---- 副手：盾 ----
     "SmallShield": { "display": 1673, "type": "shield" },  // Buckler_Round_A_01Black
     "TowerShield": { "display": 1706, "type": "shield" },  // Shield_Rectangle_A_01Purple
-    "Buckler":     { "display": 2324, "type": "shield" }   // Buckler_Oval_A_01Red
-    // 箭袋（SerratedArrowQuiver）、标枪（Javelin）暂不显示
+    "Buckler":     { "display": 2324, "type": "shield" },  // Buckler_Oval_A_01Red
+    // 标枪：WoW 1.12 没有标枪模型，用外观相近的长柄矛顶替（用户 2026-11-07 同意），放远程槽、按投掷武器拿在右手
+    "Javelin":    { "display": 1733, "slot": "ranged", "type": "thrown", "weapon": "thrown" },  // Polearm_2H_Bladed_A_01
+    // 箭袋（SerratedArrowQuiver）暂不显示
   },
 
   // DQQ 独特物品（EnumUniqueItem）→ 外观，写法同 items。独特物品有自己的模型（用户 2026-11-07），

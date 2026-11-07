@@ -62,7 +62,7 @@
 - [ ] 技能按 `docs/skill-presentation.md` 的规则分四层建表：①角色动作（按动作类型）、②自身特效、③技能形状、④受击特效（按元素 × 层），加投射物外观；个别技能覆盖（旋风斩旋转等）
 - [ ] 技能标签的默认表现（Attack+Melee、Spell、Range、Nova、Chaining、Warcry、Minion、Totem……）
 - [ ] 技能形状的默认特效（Chain、Cleave、Scatter、All、Ray）
-- [ ] 元素 → 学派与颜色
+- [x] 元素 → 学派与颜色（`skills.json` elements；混沌用暗影系，用户 2026-11-07 确认）
 - [ ] 54 个持续效果 → 光环法术 id（只做能看出来的，其余不显示）
 
 ### E. 地图
@@ -104,6 +104,7 @@
 - 2026-11-07（Claude）：按用户说明：EnumItem 每一项是一件具体物品，各有外观；带 `EnumUniqueItem` 的独特物品有自己的模型。`equipment.json` 加 `uniqueItems`（先查独特物品，没填用底子物品），角色列表与种子英雄都按物品的 `UniqueItemNumber` 取。DQQ 现有 1 件：漂泊之拳（TheStrayGlove，底子 PlateGlove）→ 无畏（战士 T3）护手 35050，Claude 先挑、用户审；游戏里临时换上看过（黑色带刺的大护手）。`mapping-report` 加独特物品一节（1/1）。
 - 2026-11-07（Claude）：开始 D。用户补充规则：主手是弓、技能是攻击且无肉搏 → 射击动作（写进 `docs/skill-presentation.md` §2.1）。新增 `run-event-stats`（runtime `--event-stats`）：后台重放 `replays/` 的录像，统计实际出现的技能事件，并列出 DQQ 全部 86 个技能的定义（名字、标签、形状、元素、持续效果、是否怪物专用），输出 `tools/logs/event-stats.md`。现有两个录像只出现普攻和奥术洪流；协议的 `CombatEvent` 已带技能、标签、阶段、形状、元素，D 不必再扩协议字段。
 - 2026-11-07（Claude）：用户录了 50 多个技能录像（`replays/replay-技能名.txt`）。`event-stats` 加"DQQ 原始日志"一节（过滤前的日志种类、技能、持续效果）。发现：光环开启是 `ActiveAura` 日志、光环与流血等持续伤害的日志不带技能只带持续效果（runtime 现在把这些滤掉了，要补上）；战吼没有任何日志，只在角色快照里出现持续效果；超级霸王电影弹只有伤害日志。冰霜之锤录像重放无事件，原因是 DQQ 改了冰霜之锤（加武器限制）而 `source/dqq` 是旧编译，`run-update-dqq` 后正常。以后 DQQ 改了代码再录像，要先更新 `source/dqq`。
+- 2026-11-07（Claude）：D 第一版跑通。`config/mapping/skills.json`（元素 → 学派；动作 × 元素 → 借用的 WoW 法术；技能覆盖；持续效果出现时的法术），runtime 按 §2.1 规则判定动作（含主手武器：弓射击、标枪投掷）并给每个事件带上 `action`/`spell`/`school`/`duration`；补上 `ActiveAura` 日志与"持续效果开始"事件。客户端按事件播放：施放 → `SpellGo`（法术自带的施法动作、飞行物、命中特效），近战伤害 → 挥砍，其他伤害 → 法术伤害数字（按学派着色），治疗 → 治疗数字。加 `.play 录像名 [场景]`。游戏里看过：火球（散射）、闪电链、弓射击、旋风斩（刀光剑影 + 暴击释放）。标枪用长柄矛顶替。还没做：形状（链只打第一个目标、新星范围）、引导连续、持续效果光环、超级霸王电影弹的冲刺、弓弦。
 
 ## 审阅工具
 - `tools/run-event-stats.cmd`：重放录像、统计技能事件，并列出 DQQ 全部技能的定义（`tools/logs/event-stats.md`）。

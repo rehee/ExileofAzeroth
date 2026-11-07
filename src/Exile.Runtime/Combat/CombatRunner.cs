@@ -46,6 +46,11 @@ public sealed class CombatRunner
         request.CancellationToken = ct;
 
         var focusId = request.CreatorId?.ToString();
+        // 英雄主手武器种类（弓 → 射击，PLAN-0006 D）；怪物、召唤物没有。
+        var weapons = (request.Creators ?? []).Where(c => c.Id != null)
+            .ToDictionary(c => c.Id!.Value.ToString(), c => Visuals.Mapping.MappingFiles.HeroWeapon(c.Equips));
+        var enemies = new HashSet<string>();
+        var durationsSeen = new HashSet<string>();
         // 英雄的外观按种子里的角色 DTO（录像当时的装备，config/mapping/equipment.json 对应）。
         var heroes = (request.Creators ?? []).Where(c => c.Id != null).ToDictionary(
             c => c.Id!.Value.ToString(),
@@ -73,13 +78,25 @@ public sealed class CombatRunner
                 RawLog?.Invoke(log);
                 if (log.LogType is not (EnumLogType.CastSkill or EnumLogType.TriggerSpell
                     or EnumLogType.SkillRangeAndTarget or EnumLogType.DamageTaken or EnumLogType.HealingTaken
-                    or EnumLogType.Killed or EnumLogType.ActorIsDown)) continue;
-                events.Add(ToEvent(log, p.Tick));
+                    or EnumLogType.Killed or EnumLogType.ActorIsDown or EnumLogType.ActiveAura)) continue;
+                events.Add(ToEvent(log, p.Tick, weapons, enemies));
             }
             foreach (var t in p.TimeLine ?? [])
             {
                 var tick = t.ActionTick ?? p.Tick;
                 lastTick = Math.Max(lastTick, tick);
+                foreach (var e in t.Enemies ?? []) if (e.Id is { } eid) enemies.Add(eid.ToString());
+                // 持续效果出现（没有施放日志的技能靠它：战吼、超级霸王电影弹……，docs/skill-presentation.md §2.1.1）。
+                foreach (var a in (t.Players ?? []).Concat(t.Enemies ?? []))
+                    foreach (var d in a.Durations ?? [])
+                    {
+                        if (a.Id == null || d.DurationNumber is not { } dn) continue;
+                        var key = d.Id?.ToString() ?? $"{a.Id}:{dn}";
+                        if (!durationsSeen.Add(key)) continue;
+                        var name = dn.ToString();
+                        events.Add(new CombatEvent(key, tick, "DurationStart", null, a.Id.ToString(), null, [], null, null, 0, null, null,
+                            "Physics", 0, false, false, true, name, "duration", Visuals.Mapping.SkillLooks.DurationSpell(name), 0));
+                    }
                 var frame = new CombatFrame(combatId, tick,
                     (t.Players ?? []).Select(a => ToActor(a, "player"))
                         .Concat((t.Enemies ?? []).Select(a => ToActor(a, "enemy"))).ToArray(),
@@ -124,7 +141,7 @@ public sealed class CombatRunner
         a.TargetX, a.TargetY, kind == "enemy" && Visuals.WowLook.Oversize(a.MobNumber?.ToString()),
         kind == "enemy" ? Visuals.Mapping.MobLooks.Get(a.MobNumber?.ToString()).Dress : null);
 
-    private static CombatEvent ToEvent(TickLogItem log, int tick)
+    private static CombatEvent ToEvent(TickLogItem log, int tick, Dictionary<string, string?> weapons, HashSet<string> enemies)
     {
         var skill = log.Skill;
         var tags = skill?.SkillTags ?? (skill?.SkillNumber is EnumSkillNumber n
@@ -135,10 +152,20 @@ public sealed class CombatRunner
             ("Lightning", d?.Lightning ?? 0), ("Chaos", d?.ChaosDamage ?? 0) };
         var top = elements.OrderByDescending(e => e.Item2).First();
         var amount = log.LogType == EnumLogType.HealingTaken ? (double)(log.Healing?.ActualHeal ?? 0) : (d?.DamagePoint ?? 0);
+        var from = log.From?.Id?.ToString();
+        // 伤害数字按实际伤害的元素；演出按技能的元素（标签优先），见 SkillLooks.ElementFor。
+        var element = top.Item2 > 0 ? top.Item1 : "Physics";
+        var tagNames = tags.Select(t => t.ToString()).ToArray();
+        var defined = skill?.SkillNumber is EnumSkillNumber sn2 ? DQQPool.TryGet<SkillProfile, EnumSkillNumber>(sn2)?.DamageType?.ToString() : null;
+        var look = Visuals.Mapping.SkillLooks.ElementFor(tagNames, defined, element);
+        var play = Visuals.Mapping.SkillLooks.Play(skill?.SkillNumber?.ToString(), tagNames, look,
+            from != null && weapons.TryGetValue(from, out var w) ? w : null, from != null && enemies.Contains(from));
         return new CombatEvent(log.Id.ToString(), log.ActionTick ?? tick, log.LogType.ToString(),
             log.From?.Id?.ToString(), log.Target?.Id?.ToString(), skill?.SkillNumber?.ToString(),
-            tags.Select(t => t.ToString()).ToArray(), skill?.RenderPhase, log.SkillShape?.SkillShape.ToString(),
+            tagNames, skill?.RenderPhase, log.SkillShape?.SkillShape.ToString(),
             log.SkillShape?.Range ?? skill?.SkillArea ?? 0, log.SkillShape?.CenterX, log.SkillShape?.CenterY,
-            top.Item2 > 0 ? top.Item1 : "Physics", amount, d?.IsCritical == true, d?.IsKilled == true, log.Success);
+            element, amount, d?.IsCritical == true, d?.IsKilled == true, log.Success,
+            skill?.DurationNumber?.ToString(), play.Action, play.Spell,
+            log.LogType == EnumLogType.DamageTaken ? Visuals.Mapping.SkillLooks.School(element) : play.School);
     }
 }

@@ -80,8 +80,9 @@ public static class MappingFiles
             LoadClasses(Path.Combine(Dir, "classes.json"), errors);
             LoadEquipment(Path.Combine(Dir, "equipment.json"), errors);
             LoadMaps(Path.Combine(Dir, "maps.json"), errors);
+            SkillLooks.Load(Path.Combine(Dir, "skills.json"), errors);
             Errors = errors;
-            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}、战场 {Scenes.Count}" +
+            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}、战场 {Scenes.Count}、技能表现 {SkillLooks.Summary}" +
                 (errors.Count == 0 ? "" : $"，{errors.Count} 个问题"));
             foreach (var e in errors) Console.WriteLine($"[mapping] 问题：{e}");
         }
@@ -97,7 +98,7 @@ public static class MappingFiles
         return null;
     }
 
-    private static JsonDocument? Read(string path, List<string> errors)
+    internal static JsonDocument? Read(string path, List<string> errors)
     {
         if (!File.Exists(path)) { errors.Add($"{Path.GetFileName(path)} 不存在"); return null; }
         try { return JsonDocument.Parse(File.ReadAllText(path), Options); }
@@ -229,6 +230,15 @@ public static class MappingFiles
         return HeroLook with { Items = items.ToArray() };
     }
 
+    /// <summary>英雄主手武器的种类（equipment.json 的 weapon，独特物品优先）；没拿或没写为 null。技能动作判定用（弓 → 射击）。</summary>
+    public static string? HeroWeapon(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips)
+    {
+        if (equips == null || !equips.TryGetValue(DQQ.Enums.EnumEquipSlot.MainHand, out var main) || main?.Profile == null) return null;
+        if (main.UniqueItemNumber != DQQ.Enums.EnumUniqueItem.None && EquipUniques.TryGetValue(main.UniqueItemNumber.ToString(), out var u))
+            return Str(u, "weapon");
+        return EquipItems.TryGetValue(main.Profile.ProfileNumber.ToString(), out var look) ? Str(look, "weapon") : null;
+    }
+
     /// <summary>DQQ 角色 DTO 的装备（<c>Equips</c>）穿到英雄身上：物品名、独特物品名（没有为 null）。</summary>
     public static Dress HeroDress(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips) =>
         HeroDress((equips ?? new Dictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>())
@@ -345,9 +355,9 @@ public static class MappingFiles
         return new DressItem(slot.Slot, display.Value, type, isWeapon ? 2 : 4, subclass);
     }
 
-    private static int? Int(JsonElement e, string name) =>
+    internal static int? Int(JsonElement e, string name) =>
         e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v) && v.TryGetInt32(out var i) ? i : null;
 
-    private static string? Str(JsonElement e, string name) =>
+    internal static string? Str(JsonElement e, string name) =>
         e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 }

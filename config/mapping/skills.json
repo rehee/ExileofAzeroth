@@ -1,0 +1,52 @@
+// DQQ 技能 → WoW 表现（PLAN-0006 D）。规则见 docs/skill-presentation.md，字段说明见 docs/mapping-config.md §2.6。
+// 数字都是 WoW 1.12 的法术 id（Spell.dbc）：客户端播放这个法术的施法动作、自身特效、飞行物与命中特效。
+// 改完保存即可：下一场回放生效。
+{
+  // DQQ 元素（EnumDamageType）→ WoW 伤害学派：0 物理 1 神圣 2 火焰 3 自然 4 冰霜 5 暗影 6 奥术。决定伤害数字和法术颜色。
+  "elements": {
+    "Physics":   { "school": 0, "note": "物理：白/灰刀光" },
+    "Fire":      { "school": 2, "note": "火焰：橙红" },
+    "Cold":      { "school": 4, "note": "冰霜：冰蓝" },
+    "Lightning": { "school": 3, "note": "闪电：WoW 的闪电属自然系" },
+    "Chaos":     { "school": 5, "note": "混沌：暗影系，紫黑（用户 2026-11-07 确认）" }
+  },
+
+  // 角色动作（由规则判定，见文档 §2.1）× 元素 → 借用的 WoW 法术。"*" = 其余元素；不写或 0 = 不播法术。
+  //   melee / mobAttack：近战挥砍 / 怪物自己的攻击动画，由伤害事件带出，不播法术
+  "actions": {
+    "shoot":      75,      // 自动射击（弓、弩、枪；魔杖在 DQQ 是法系武器，按法术演）
+    "throw":      2764,    // 投掷（标枪等投掷武器）
+    "projectile": { "Fire": 133, "Cold": 116, "Lightning": 403, "Chaos": 686, "*": 7268 },  // 火球、寒冰箭、闪电箭、暗影箭、奥术飞弹（物理）
+    "cast":       { "Fire": 2136, "Cold": 116, "Lightning": 403, "Chaos": 686, "*": 2050 }, // 火焰冲击、寒冰箭、闪电箭、暗影箭
+    "channel":    { "Chaos": 15407, "Cold": 5138, "Fire": 5740, "*": 15407 },   // 精神鞭笞、吸取法力（蓝色光束）、火焰之雨
+    "spin":       1680,    // 旋风斩
+    "nova":       { "Cold": 122, "Fire": 11969, "*": 1449 },  // 冰霜新星、火焰新星、魔爆术
+    "shout":      6673,    // 战斗怒吼
+    "aura":       { "Cold": 20164, "Lightning": 20375, "*": 21084 },  // 开启光环：圣印（公正、命令、正义）
+    "kick":       1766,    // 脚踢
+    "charge":     100,     // 冲锋
+    "judgement":  20271    // 审判（尸爆、自毁命令、召唤的施法动作）
+  },
+
+  // 个别技能覆盖：action 改动作，spell 改法术（数字，或按元素）。
+  "skills": {
+    "Whirlwind":       { "action": "spin" },
+    "Charge":          { "action": "charge" },
+    "BrutalCharge":    { "action": "charge" },
+    "CorpseExplosion": { "action": "judgement" },
+    "SelfDestructCommand": { "action": "judgement" },
+    "Healing":         { "spell": 2050 },   // 次级治疗术
+    "Renew":           { "spell": 139 },    // 恢复
+    "PowerWordShield": { "spell": 17 },     // 真言术：盾
+    "Lightning":       { "spell": 421 },    // 闪电链
+    "Flamethrow":      { "spell": 2120 },   // 烈焰风暴
+    "SpecialBeamCannon": { "spell": 15407 } // 精神鞭笞的光束
+  },
+
+  // 持续效果出现时（runtime 比较前后帧）在带上它的角色身上播的法术。用于没有施放日志的技能。
+  "durations": {
+    "BattleShout":          6673,  // 战吼：DQQ 不写施放日志，以持续效果出现为施放
+    "DamageInvincibility":  642,   // 超级霸王电影弹蓄力时的无敌：圣盾术
+    "ChoukyuuHaouDenEidan": 100    // 超级霸王电影弹的冲刺：冲锋
+  }
+}

@@ -13,7 +13,7 @@ public static class EventStats
     private sealed class Row
     {
         public int Count;
-        public readonly HashSet<string> Kinds = [], Tags = [], Phases = [], Shapes = [], Elements = [], Casters = [];
+        public readonly HashSet<string> Kinds = [], Tags = [], Phases = [], Shapes = [], Elements = [], Casters = [], Plays = [];
     }
 
     public static async Task<string> Build(ReplayFiles files)
@@ -41,7 +41,7 @@ public static class EventStats
                     {
                         n++;
                         kinds[e.Kind] = kinds.GetValueOrDefault(e.Kind) + 1;
-                        var key = e.Skill ?? "（无技能）";
+                        var key = e.Skill ?? (e.Duration != null ? $"（持续效果 {e.Duration}）" : "（无技能）");
                         if (!rows.TryGetValue(key, out var r)) rows[key] = r = new Row();
                         r.Count++;
                         r.Kinds.Add(e.Kind);
@@ -49,6 +49,7 @@ public static class EventStats
                         if (e.Phase != null) r.Phases.Add(e.Phase);
                         if (e.Shape != null) r.Shapes.Add($"{e.Shape}({e.Range:0.#})");
                         if (e.Kind is "DamageTaken") r.Elements.Add(e.Element);
+                        if (e.Action != null) r.Plays.Add(e.Spell > 0 ? $"{e.Action}:{e.Spell}" : e.Action);
                         if (e.From != null && who.TryGetValue(e.From, out var c)) r.Casters.Add(c);
                     }
                     return Task.CompletedTask;
@@ -63,10 +64,10 @@ public static class EventStats
         foreach (var (k, c) in raw) md.AppendLine($"| {k} | {c} |");
         md.AppendLine("\n## 事件种类\n\n| 种类 | 次数 |\n|---|---|");
         foreach (var (k, c) in kinds) md.AppendLine($"| {k} | {c} |");
-        md.AppendLine("\n## 技能\n\n| 技能 | 次数 | 事件种类 | 标签 | 阶段 | 形状(范围) | 元素 | 施放者 |\n|---|---|---|---|---|---|---|---|");
+        md.AppendLine("\n## 技能\n\n| 技能 | 次数 | 事件种类 | 标签 | 阶段 | 形状(范围) | 元素 | 施放者 | 演法（动作:WoW 法术） |\n|---|---|---|---|---|---|---|---|---|");
         static string J(IEnumerable<string> s) => string.Join(" ", s.Order());
         foreach (var (k, r) in rows)
-            md.AppendLine($"| {k} | {r.Count} | {J(r.Kinds)} | {J(r.Tags)} | {J(r.Phases)} | {J(r.Shapes)} | {J(r.Elements)} | {J(r.Casters)} |");
+            md.AppendLine($"| {k} | {r.Count} | {J(r.Kinds)} | {J(r.Tags)} | {J(r.Phases)} | {J(r.Shapes)} | {J(r.Elements)} | {J(r.Casters)} | {J(r.Plays)} |");
         md.AppendLine();
         Visuals.Mapping.MappingReport.SkillCatalog(md);
         return md.ToString();

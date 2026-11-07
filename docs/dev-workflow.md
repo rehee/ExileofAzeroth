@@ -80,6 +80,9 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 `.replay forest|coast|den|plains|rift|graveyard`：播放最近一场录像，战场换成该场景（`maps.json` 的 scenes）。
 自由模式聊天框 `.goto x y [半径] [map=地图id]`：传送到该地图（默认当前地图；`map=1` 卡利姆多）的 (x, y)（带半径时找半径内最平的点），日志记录周围 ±10 码的高差，用来给 `config/mapping/maps.json` 选战场中心（`docs/mapping-config.md` §2.5）。
 
+### 4.0.3 看某个技能的录像（`.play`）
+`.play 名字 [场景]`：播放 `replays/replay-名字.txt`（也可以写完整文件名），可选战场场景。用来逐个检查技能表现（PLAN-0006 D），例如 `.play FireBall plains`。录像文件名按技能命名（用户整理）。DQQ 改过代码后先跑 `run-update-dqq`，否则重放会和录像对不上。
+
 ### 4.1 诊断探针（开发版客户端自带）
 
 `config/dev.local.json` 的 `probe.key` / `probe.lua` 由 `exile-play` 转成 `WOW_PROBE_KEY` / `WOW_PROBE_LUA`：

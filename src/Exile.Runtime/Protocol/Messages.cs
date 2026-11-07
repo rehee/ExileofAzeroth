@@ -60,7 +60,11 @@ public sealed record Dress(int Race, int Gender, int Skin, int Face, int Hair, i
 public sealed record DressItem(int Slot, int DisplayId, int InventoryType, int ItemClass, int ItemSubclass);
 public sealed record CombatEvent(string Id, int Tick, string Kind, string? From, string? Target,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
-    string Element, double Amount, bool Critical, bool Killed, bool Success);
+    string Element, double Amount, bool Critical, bool Killed, bool Success,
+    string? Duration = null, string? Action = null, int Spell = 0, int School = 0);
+// Duration：持续效果（持续伤害/治疗来自哪个持续效果，或 DurationStart 的那个）。Action / Spell / School：runtime 按
+// config/mapping/skills.json 判定的角色动作、借用的 WoW 法术（0 = 不播）、伤害学派（PLAN-0006 D）。
+// Kind 除 DQQ 日志种类外还有 runtime 生成的 DurationStart（某角色身上出现了一个持续效果，Target = 该角色）。
 public sealed record CombatEnd(string CombatId, string Result, int Ticks, long Experience, int Kills, string TotalDamage, CombatStats Stats);
 public sealed record CombatStats(int Frames, double SimulateMs, double AvgFrameBytes, int MaxFrameBytes, double GcPauseMs, int Gen0, int Gen1, int Gen2);
 public sealed record ErrorData(string Message);
