@@ -42,7 +42,9 @@ public sealed record ReplayExportRequest(string? ReplayId);
 public sealed record ReplayExportResult(string File, string Path);
 public sealed record ReplayFileSummary(string File, string Id, DateTime? PlayTime, int Ticks, string Result, long Experience, string? TotalDamage,
     string? Name = null, string? Character = null);
-public sealed record CombatBegin(string CombatId, string Map, string Mode, int TickRate, string? FocusId);
+/// <param name="Heroes">种子里每个英雄（DQQ 角色 id → 穿上种子里装备的外观）：回放里英雄穿的是录像当时的装备，不是现在的。</param>
+public sealed record CombatBegin(string CombatId, string Map, string Mode, int TickRate, string? FocusId,
+    Dictionary<string, Dress>? Heroes = null);
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
