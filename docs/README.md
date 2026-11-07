@@ -7,6 +7,7 @@
 |------|------|------|------|----------|
 | [architecture.md](architecture.md) | 总体架构（方案 T） | 已定稿 | Claude | 2026-11-06 |
 | [bridge-protocol.md](bridge-protocol.md) | 桥接协议（runtime ↔ 客户端、插件消息） | 草案 v1 | Claude | 2026-11-07 |
+| [skill-presentation.md](skill-presentation.md) | 技能表现规则（DQQ 日志 → WoW 表现） | 已确认 | Claude | 2026-11-07 |
 | [spike-results.md](spike-results.md) | 验证结论（PLAN-0003） | 已定稿 | Claude | 2026-11-07 |
 | [dev-workflow.md](dev-workflow.md) | 开发与运行流程（Windows） | 现行 | Claude | 2026-11-06 |
 | [archive/architecture-discussion-2026-11-06.md](archive/architecture-discussion-2026-11-06.md) | 架构讨论过程（存档） | 存档 | Claude | 2026-11-06 |
