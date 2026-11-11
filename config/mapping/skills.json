@@ -68,6 +68,14 @@
       "Fire":      { "spell": 28470, "channel": false },  // Blood Tap（Beam_Red）：红色
       "Cold":      { "spell": 27286, "channel": false, "color": [0.4, 2.0, 2.4] },  // 冰霜射线：紫色平滑光束染成冰蓝（ManaBeam 是锯齿状，像闪电，不用）
       "*":         { "spell": 13003, "channel": false }   // Shrink Ray（ManaBurnBeam）：物理
+    },
+    // 连锁形状（Chain：连锁辅助）：DQQ 每一跳记一条日志（上一个目标 → 下一个目标），每一跳画一道施放型光束，
+    // 所以看起来是从施放者打到第一个目标、再一个个跳过去。只配元素，不写 "*"：物理的连锁（普通攻击）不画线。
+    "Chain": {
+      "Lightning": { "spell": 421,   "channel": false },  // 闪电链
+      "Chaos":     { "spell": 27286, "channel": false },
+      "Fire":      { "spell": 28470, "channel": false },
+      "Cold":      { "spell": 27286, "channel": false, "color": [0.4, 2.0, 2.4] }
     }
   },
 
