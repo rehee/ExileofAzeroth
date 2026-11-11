@@ -133,6 +133,22 @@
     // native = 模型本身的半径（码，读自模型文件的 Hold 包围盒），按它缩放到 distance，圈的大小就等于 DQQ 的判定范围。
     // 光环圈：7294 惩罚光环（金色法阵，1.45 码）、465 虔诚光环（1.45 码）、19891 抗性光环（2.04 码）。
     // 灼热地面 22191 的 native 20 是游戏里对照估的（模型文件里没有它的大小）。
-    "RighteousFire":        { "enemy": 12654, "ring": { "area": 22191, "native": 20, "distance": "Middle" } }  // 灼热地面（用户 2026-11-11）
+    "RighteousFire":        { "enemy": 12654, "ring": { "model": "SearingGround", "distance": "Middle" } }  // 灼热地面（用户 2026-11-11）
+  },
+
+  // 地面模型库（PLAN-0011）：范围圈（auras.*.ring.model）和角色配置（WoWCharConfig 的 skills.*.ring）按名字引用。
+  // spell = 借用的地面法术（用它的区域模型，没有就用施法特效的模型）；native = 模型本身的半径（码），按它缩放到 DQQ 的判定范围。
+  // 地面法术的区域模型都按同一个办法常亮：播完开场后在铺满的那几秒（全长 30%～60%）来回重复（用户 2026-11-11）。
+  "groundModels": {
+    "SearingGround": { "spell": 22191, "native": 20 },    // 灼热地面（HellFire_Area_Base，方片半边 20.8 码，游戏里对照取 20）
+    "Consecration":  { "spell": 20116, "native": 11 },    // 奉献（Consecration_Impact_Base，外框半边 11.5 码）
+    "Retribution":   { "spell": 7294,  "native": 1.45 },  // 惩罚光环的金色法阵（停在画满的那一帧）
+    "Devotion":      { "spell": 465,   "native": 1.45 },  // 虔诚光环
+    "Resistance":    { "spell": 19891, "native": 2.04 }   // 抗性光环
+  },
+
+  // 技能 → 它产生的持续效果（PLAN-0011）：DQQ 的持续效果不带来源技能，角色配置按技能写的范围圈靠这张表套到持续效果上。
+  "skillDurations": {
+    "RighteousFireProfile": ["RighteousFire"]
   }
 }

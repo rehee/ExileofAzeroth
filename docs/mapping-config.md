@@ -106,7 +106,7 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 
 ```jsonc
 {
-  "hero": { "race": "human", "gender": "female", "skin": 0, "face": 0, "hair": 0, "hairColor": 0 },  // 写法同 2.3，不写 items
+  // （2026-11-11 起没有 hero：英雄的种族、性别、长相从角色配置 WoWCharConfig 来，见 docs/char-config.md）
   "slots": { "<EnumEquipSlot 名>": "<WoW 装备槽>" },   // 如 "Body": "chest"；项链、戒指不写 = 不显示
   "items": {
     "<EnumItem 名>": 29958,                                            // 只写外观

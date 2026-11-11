@@ -1,0 +1,12 @@
+// WoW 物品库（PLAN-0011）：角色配置 WoWCharConfig 的幻化按名字（{ "item": "Thunderfury" }）或 WoW 物品编号（{ "item": 19019 }）引用。
+// 1.12 客户端没有物品表（物品数据在服务器上），所以“这件物品长什么样、是什么武器”要在这里列。
+// 写法同 equipment.json 的 items：display（ItemDisplayInfo id）、type（放法）、weapon（武器种类，决定战斗动作）、sheath（收起挂哪）、slot；
+// 另加 id（WoW 物品编号）与 name（备注用的名字）。外观 id 要在游戏里看过确认（棋盘格 = 模型或贴图找不到）。
+// 幻化后按这件物品自己的逻辑来（用户 2026-11-11）：放法、武器种类、收起挂哪都照原物品写，不按被换掉的 DQQ 装备。
+// sheath 要照原物品写（不写就按种类：单手武器挂身侧），例如风剑原版背在背上。
+{
+  "items": {
+    // 雷霆之怒，逐风者的祝福之剑（风剑）：1.12 用 Ashbringer02 模型的蓝色贴图（ItemDisplayInfo 30606，图标 INV_Sword_39）。
+    "Thunderfury": { "id": 19019, "display": 30606, "type": "oneHand", "weapon": "sword", "sheath": "back", "name": "雷霆之怒，逐风者的祝福之剑" }
+  }
+}

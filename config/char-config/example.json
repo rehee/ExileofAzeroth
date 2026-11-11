@@ -1,0 +1,29 @@
+// 角色外观配置 WoWCharConfig 的完整示例（PLAN-0011，说明见 docs/char-config.md）。
+// 以后存在 DQQ 角色 DTO 的 WoWCharConfig 字段里；现在可以复制成 test.json、<角色 id>.json 或 <角色名>.json 本地测试。
+// 只写和默认不一样的地方，其余按 config/mapping 的对应表。
+{
+  "v": 1,
+
+  // 长相：不写的项按 equipment.json 的 hero
+  "look": { "race": "nightelf", "gender": "female", "skin": 2, "face": 1, "hair": 4, "hairColor": 3, "facialHair": 0 },
+
+  // 幻化：键是 DQQ 装备槽（MainHand OffHand Head Body Gloves Boots Belt）或 WoW 槽（shoulder back legs wrist shirt tabard ……）
+  "transmog": {
+    "MainHand": { "item": "Thunderfury" },                 // 物品库（wow-items.json）的名字
+    "OffHand":  { "display": 2324, "type": "shield" },     // 直接写外观，写法同 equipment.json 的 items
+    "Head":     { "hide": true },                          // 不显示
+    "shoulder": { "display": 9038 }                        // DQQ 没有的槽也能显示
+  },
+
+  // 技能皮肤：键是 DQQ 技能（EnumSkillNumber）
+  "skills": {
+    "RighteousFireProfile": { "ring": "Consecration" },    // 范围圈换成奉献（地面模型库 groundModels 的名字）
+    "FireBall":             { "spell": 25306 },            // 换借用的法术（数字，或按元素 { "Fire": id, "*": id }）
+    "Lightning":            { "ray": { "spell": 421, "color": [1.0, 0.4, 1.0] } }  // 换射线并染色
+  },
+
+  // 持续效果皮肤：键是 DQQ 持续效果（EnumDurationNumber）
+  "durations": {
+    "PowerWordShield": { "hero": 11426 }                   // 常驻光环换成寒冰护体
+  }
+}

@@ -73,10 +73,27 @@ public sealed class DqqHost : IAsyncDisposable
         await auth.SetAuth(result.Content, EnumPlayMode.Online);
     }
 
+    /// <summary>
+    /// 账号的全部角色。列表接口（在线 Character/DTO）不带 WoWCharConfig，所以每个角色再按 id 取一次
+    /// （Character/DTO/{id}，用户 2026-11-11）；取不到就用列表里的。
+    /// </summary>
     public async Task<CharacterDTO[]> GetCharacters()
     {
         var service = Services.GetRequiredService<ICharacterService>();
-        return (await service.GetAllCharacterDTOs()).ToArray();
+        var list = (await service.GetAllCharacterDTOs()).ToArray();
+        var full = await Task.WhenAll(list.Select(async c => c.Id == null ? c : await service.GetCharacterDTO(c.Id) ?? c));
+        return full;
+    }
+
+    /// <summary>按 id 取一个角色（带 WoWCharConfig）；没有为 null。</summary>
+    public async Task<CharacterDTO?> GetCharacter(Guid id) =>
+        await Services.GetRequiredService<ICharacterService>().GetCharacterDTO(id);
+
+    /// <summary>保存角色的 WoW 外观配置（DQQ ICharConfigService，PLAN-0011：梳妆台与幻化）。</summary>
+    public async Task SaveCharConfig(Guid characterId, string config)
+    {
+        var service = Services.GetRequiredService<ICharConfigService>();
+        await service.UpdateCharConfigAsync(DQQ.Enums.EnumGameClient.WOW, characterId, config);
     }
 
     /// <summary>角色的战斗录像（IReplayService.AllReplay），新的在前。</summary>

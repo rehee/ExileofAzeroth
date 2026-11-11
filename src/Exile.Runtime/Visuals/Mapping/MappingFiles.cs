@@ -29,14 +29,21 @@ public static class MappingFiles
         new Dictionary<string, (int, string)>();
     public static int ClassFallback { get; private set; } = 1;
 
-    /// <summary>英雄（DQQ 角色）的统一外观（不含装备），equipment.json 的 hero。</summary>
-    public static Dress HeroLook { get; private set; } = new(1, 1, 0, 0, 0, 0, []);
+    /// <summary>
+    /// 英雄（DQQ 角色）没有配置时的长相（不含装备）：人类女性，长相都取 0（用户 2026-11-11：种族、性别、长相都从
+    /// 角色配置 WoWCharConfig 来，空的就是人类女性）。
+    /// </summary>
+    public static readonly Dress HeroLook = new(1, 1, 0, 0, 0, 0, []);
     /// <summary>DQQ 装备槽名 → WoW 装备槽名（equipment.json 的 slots）。</summary>
     public static IReadOnlyDictionary<string, string> EquipSlots { get; private set; } = new Dictionary<string, string>();
     /// <summary>DQQ 物品名 → 外观（槽位由 DQQ 装备槽决定，这里只存外观、放法、武器种类）。</summary>
     public static IReadOnlyDictionary<string, JsonElement> EquipItems { get; private set; } = new Dictionary<string, JsonElement>();
     /// <summary>DQQ 独特物品名（EnumUniqueItem）→ 外观，写法同 <see cref="EquipItems"/>；独特物品有自己的模型，盖过底子物品的外观。</summary>
     public static IReadOnlyDictionary<string, JsonElement> EquipUniques { get; private set; } = new Dictionary<string, JsonElement>();
+    /// <summary>WoW 物品库（wow-items.json，PLAN-0011）：名字 → 外观，写法同 <see cref="EquipItems"/>；角色配置的幻化按名字或 WoW 物品编号引用。</summary>
+    public static IReadOnlyDictionary<string, JsonElement> WowItems { get; private set; } = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+    /// <summary>WoW 物品编号 → 物品库里的名字。</summary>
+    public static IReadOnlyDictionary<int, string> WowItemIds { get; private set; } = new Dictionary<int, string>();
 
     /// <summary>战场场景（maps.json 的 scenes）与 DQQ 地图 → 场景名。</summary>
     public static IReadOnlyDictionary<string, Battlefield> Scenes { get; private set; } = new Dictionary<string, Battlefield>();
@@ -87,8 +94,9 @@ public static class MappingFiles
             Safe("equipment.json", LoadEquipment);
             Safe("maps.json", LoadMaps);
             Safe("skills.json", SkillLooks.Load);
+            Safe("wow-items.json", LoadWowItems);
             Errors = errors;
-            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}、战场 {Scenes.Count}、技能表现 {SkillLooks.Summary}" +
+            Console.WriteLine($"[mapping] 已读取：怪物 {Mobs.Count}、战斗风格 {Classes.Count}、装备 {EquipItems.Count}、战场 {Scenes.Count}、技能表现 {SkillLooks.Summary}、物品库 {WowItems.Count}" +
                 (errors.Count == 0 ? "" : $"，{errors.Count} 个问题"));
             foreach (var e in errors) Console.WriteLine($"[mapping] 问题：{e}");
         }
@@ -173,7 +181,7 @@ public static class MappingFiles
         using var doc = Read(path, errors);
         if (doc == null) return;
         var root = doc.RootElement;
-        if (root.TryGetProperty("hero", out var h) && ParseDress(h, "equipment.json hero", errors) is { } hero) HeroLook = hero;
+        if (root.TryGetProperty("hero", out _)) errors.Add("equipment.json hero：不再使用（长相从角色配置 WoWCharConfig 来，没有就是人类女性），请删掉");
         var slots = new Dictionary<string, string>();
         if (root.TryGetProperty("slots", out var ss) && ss.ValueKind == JsonValueKind.Object)
             foreach (var p in ss.EnumerateObject())
@@ -210,12 +218,14 @@ public static class MappingFiles
     }
 
     /// <summary>
-    /// 英雄穿上 DQQ 装备后的外观：<see cref="HeroLook"/> 加每件装备（DQQ 槽 → WoW 槽，DQQ 物品 → 外观）。
-    /// 表里没有的物品不显示，记一次缺失。
+    /// 英雄身上每个 WoW 槽显示什么（PLAN-0011）：先按 DQQ 装备（DQQ 槽 → WoW 槽，DQQ 物品 → 外观），再按角色配置的幻化覆盖
+    /// （幻化 > DQQ 装备 > 不显示）。键是 DQQ 槽对应的 WoW 槽（物品自己的 slot 只决定放在哪，例如弓放进远程槽，
+    /// 所以幻化主手会换掉 DQQ 主手的弓）。表里没有的物品不显示，记一次缺失。
     /// </summary>
-    public static Dress HeroDress(IEnumerable<(string Slot, string Item, string? Unique)> equips)
+    private static List<(string Key, string At, JsonElement Look, string Where)> HeroLooks(
+        IEnumerable<(string Slot, string Item, string? Unique)> equips, CharConfig? cfg)
     {
-        var items = new List<DressItem>();
+        var looks = new List<(string Key, string At, JsonElement Look, string Where)>();
         foreach (var (slot, item, unique) in equips)
         {
             if (!EquipSlots.TryGetValue(slot, out var wowSlot)) continue;  // 项链、戒指：不显示
@@ -229,8 +239,30 @@ public static class MappingFiles
                 if (!EquipItems.TryGetValue(item, out look)) { MappingLog.Miss("EnumItem", item); continue; }
                 at0 = $"equipment.json items.{item}";
             }
-            // 物品可以指定自己的 WoW 槽（如弓放进远程槽，WoW 才拿在左手），不按 DQQ 的槽。
-            var at = Str(look, "slot") is { } own && Slots.ContainsKey(own) ? own : wowSlot;
+            var key = WowSlotOf(wowSlot) ?? wowSlot;
+            looks.RemoveAll(l => l.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+            looks.Add((key, PlaceOf(look, key), look, at0));
+        }
+        foreach (var (key, value) in cfg?.Transmog ?? [])
+        {
+            looks.RemoveAll(l => l.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (value is { } v) looks.Add((key, PlaceOf(v, key), v, $"{cfg!.Source} transmog.{key}"));
+        }
+        return looks;
+    }
+
+    /// <summary>物品可以指定自己的 WoW 槽（如弓放进远程槽，WoW 才拿在左手），不按键的槽。</summary>
+    private static string PlaceOf(JsonElement look, string key) =>
+        Str(look, "slot") is { } own && Slots.ContainsKey(own) ? own : key;
+
+    /// <summary>
+    /// 英雄的外观：<see cref="HeroLook"/>（角色配置的 look 覆盖）加每个槽显示的物品（<see cref="HeroLooks"/>）。
+    /// </summary>
+    public static Dress HeroDress(IEnumerable<(string Slot, string Item, string? Unique)> equips, CharConfig? cfg = null)
+    {
+        var items = new List<DressItem>();
+        foreach (var (_, at, look, at0) in HeroLooks(equips, cfg))
+        {
             if (ParseItem(at, look, at0, []) is { } d)
             {
                 items.Add(d);
@@ -248,24 +280,88 @@ public static class MappingFiles
                 }
             }
         }
-        return HeroLook with { Items = items.ToArray() };
+        var dress = HeroLook with { Items = items.ToArray() };
+        return cfg?.ApplyLook(dress) ?? dress;
     }
 
-    /// <summary>英雄主手武器的种类（equipment.json 的 weapon，独特物品优先）；没拿或没写为 null。技能动作判定用（弓 → 射击）。</summary>
-    public static string? HeroWeapon(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips)
-    {
-        if (equips == null || !equips.TryGetValue(DQQ.Enums.EnumEquipSlot.MainHand, out var main) || main?.Profile == null) return null;
-        if (main.UniqueItemNumber != DQQ.Enums.EnumUniqueItem.None && EquipUniques.TryGetValue(main.UniqueItemNumber.ToString(), out var u))
-            return Str(u, "weapon");
-        return EquipItems.TryGetValue(main.Profile.ProfileNumber.ToString(), out var look) ? Str(look, "weapon") : null;
-    }
+    /// <summary>
+    /// 英雄主手武器的种类（weapon，幻化优先，其次独特物品、DQQ 物品）；没拿或没写为 null。技能动作判定用（弓 → 射击）。
+    /// 幻化同时决定战斗动作（用户 2026-11-11：主手幻化成风剑，就用风剑的外观和战斗动画）。
+    /// </summary>
+    public static string? HeroWeapon(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips, CharConfig? cfg = null) =>
+        HeroLooks(EquipList(equips), cfg).Where(l => l.Key.Equals("mainHand", StringComparison.OrdinalIgnoreCase))
+            .Select(l => Str(l.Look, "weapon")).FirstOrDefault();
 
     /// <summary>DQQ 角色 DTO 的装备（<c>Equips</c>）穿到英雄身上：物品名、独特物品名（没有为 null）。</summary>
-    public static Dress HeroDress(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips) =>
-        HeroDress((equips ?? new Dictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>())
+    public static Dress HeroDress(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips, CharConfig? cfg = null) =>
+        HeroDress(EquipList(equips), cfg);
+
+    private static IEnumerable<(string Slot, string Item, string? Unique)> EquipList(
+        IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips) =>
+        (equips ?? new Dictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>())
             .Where(p => p.Value?.Profile != null)
             .Select(p => (p.Key.ToString(), p.Value!.Profile!.ProfileNumber.ToString(),
-                p.Value.UniqueItemNumber == DQQ.Enums.EnumUniqueItem.None ? null : p.Value.UniqueItemNumber.ToString())));
+                p.Value.UniqueItemNumber == DQQ.Enums.EnumUniqueItem.None ? null : p.Value.UniqueItemNumber.ToString()));
+
+    // ---- 角色配置（PLAN-0011）用 ----
+
+    /// <summary>种族名 → WoW 种族 id；不认识为 null。</summary>
+    public static int? RaceId(string? name) => name != null && Races.TryGetValue(name, out var r) ? r : null;
+
+    /// <summary>槽位名（DQQ 装备槽，如 MainHand、Body；或 WoW 槽名，如 shoulder、back）→ WoW 槽名的规范写法；不认识为 null。</summary>
+    public static string? WowSlotOf(string name)
+    {
+        foreach (var (dqq, wow) in EquipSlots)
+            if (dqq.Equals(name, StringComparison.OrdinalIgnoreCase)) { name = wow; break; }
+        return Slots.Keys.FirstOrDefault(k => k.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// 幻化的一个值 → 外观（写法同 equipment.json 的物品）：<c>{ "item": 名字或 WoW 物品编号 }</c> 引用物品库
+    /// （可以再写 sheath 等键盖过物品库的），或直接写 <c>{ display, type, weapon, sheath }</c> / 外观 id。不可用为 null。
+    /// </summary>
+    public static JsonElement? TransmogLook(JsonElement value, string slot, string at, List<string> errors)
+    {
+        var look = value;
+        if (value.ValueKind == JsonValueKind.Object && value.TryGetProperty("item", out var it))
+        {
+            string? name = it.ValueKind == JsonValueKind.Number && it.TryGetInt32(out var id)
+                ? WowItemIds.GetValueOrDefault(id) : it.ValueKind == JsonValueKind.String ? it.GetString() : null;
+            if (name == null || !WowItems.TryGetValue(name, out var known))
+            { errors.Add($"{at}.item：物品库（config/mapping/wow-items.json）里没有 {it}"); return null; }
+            // 物品库的外观，加上这里写的其他键（item 以外）。
+            var merged = new Dictionary<string, JsonElement>();
+            foreach (var p in known.EnumerateObject()) merged[p.Name] = p.Value;
+            foreach (var p in value.EnumerateObject()) if (p.Name != "item") merged[p.Name] = p.Value;
+            look = JsonSerializer.SerializeToElement(merged);
+        }
+        return ParseItem(PlaceOf(look, slot), look, at, errors) == null ? null : look.Clone();
+    }
+
+    private static void LoadWowItems(string path, List<string> errors)
+    {
+        using var doc = Read(path, errors);
+        if (doc == null) return;
+        var items = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+        var ids = new Dictionary<int, string>();
+        if (doc.RootElement.TryGetProperty("items", out var its) && its.ValueKind == JsonValueKind.Object)
+            foreach (var it in its.EnumerateObject())
+            {
+                var at = $"wow-items.json items.{it.Name}";
+                var own = Str(it.Value, "slot");
+                if (own != null && !Slots.ContainsKey(own)) errors.Add($"{at}.slot：不认识的装备槽 \"{own}\"");
+                if (ParseItem(own != null && Slots.ContainsKey(own) ? own : "mainHand", it.Value, at, errors) == null) continue;
+                items[it.Name] = it.Value.Clone();
+                if (Int(it.Value, "id") is { } id)
+                {
+                    if (ids.TryGetValue(id, out var other)) errors.Add($"{at}.id：{id} 和 {other} 重复");
+                    else ids[id] = it.Name;
+                }
+            }
+        else errors.Add("wow-items.json：缺少 \"items\"");
+        WowItems = items;
+        WowItemIds = ids;
+    }
 
     private static void LoadMaps(string path, List<string> errors)
     {

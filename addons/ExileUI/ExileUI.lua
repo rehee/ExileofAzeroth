@@ -2,7 +2,7 @@
 -- client bridge with addon messages, prefix "EXILE", fields split by ";" ("|" is the chat escape
 -- character). See docs/bridge-protocol.md section 5.
 --   addon -> bridge: ping;<x>  replay.list  replay.play;<id>  replay.export;<id>
---                    replay.files  replay.file;<name>  character.refresh
+--                    replay.files  replay.file;<name>  character.refresh  skins;<1|0>
 --   bridge -> addon: pong;<x>  replay.begin;<n>  replay;<id>;<label>  replay.end
 --                    file.begin;<n>  file;<name>;<label>  file.end  exported;<name>  error;<text>
 --                    character;<text>
@@ -195,6 +195,38 @@ end)
 reload:SetHeight(24)
 reload:SetFrameStrata("HIGH")
 reload:SetPoint("RIGHT", open, "LEFT", -6, 0)
+
+-- Beside it: show or hide the character's own look (PLAN-0011 WoWCharConfig: transmog and skill skins,
+-- user 2026-11-11). The runtime applies the switch to the gear now and to every replay after it.
+local skinsOn = true
+local skins
+-- Also used by the barber and transmog windows (ExileWardrobe.lua): editing shows the own look.
+function ExileUI_SetSkins(on)
+  if skinsOn == on then return end
+  skinsOn = on
+  if skinsOn then
+    skins:SetText("Skins: On")
+    Print("transmog and skill skins on")
+    Send("skins;1")
+  else
+    skins:SetText("Skins: Off")
+    Print("transmog and skill skins off")
+    Send("skins;0")
+  end
+end
+skins = MakeButton("ExileUISkins", UIParent, 110, "Skins: On", function()
+  ExileUI_SetSkins(not skinsOn)
+end)
+-- The runtime keeps the switch across UI reloads: tell it the button's state once in the world.
+local skinsSync = CreateFrame("Frame")
+skinsSync:RegisterEvent("PLAYER_ENTERING_WORLD")
+skinsSync:SetScript("OnEvent", function()
+  skinsSync:UnregisterEvent("PLAYER_ENTERING_WORLD")
+  if skinsOn then Send("skins.sync;1") else Send("skins.sync;0") end
+end)
+skins:SetHeight(24)
+skins:SetFrameStrata("HIGH")
+skins:SetPoint("RIGHT", reload, "LEFT", -6, 0)
 
 SLASH_EXILE1 = "/exile"
 SlashCmdList["EXILE"] = function(msg)

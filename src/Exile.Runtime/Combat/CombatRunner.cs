@@ -46,9 +46,13 @@ public sealed class CombatRunner
         request.CancellationToken = ct;
 
         var focusId = request.CreatorId?.ToString();
-        // 英雄主手武器种类（弓 → 射击，PLAN-0006 D）；怪物、召唤物没有。
+        // 英雄的外观只看种子里角色 DTO 的 WoWCharConfig：没有就是人类女性 + 装备（用户 2026-11-11）。
+        // 英雄自己的外观配置（PLAN-0011，录像种子里的角色 DTO 带着它：看别人的录像就是别人的外观与技能皮肤）。
+        var configs = (request.Creators ?? []).Where(c => c.Id != null)
+            .ToDictionary(c => c.Id!.Value.ToString(), c => Visuals.Mapping.CharConfig.For(c));
+        // 英雄主手武器种类（弓 → 射击，PLAN-0006 D；幻化优先）；怪物、召唤物没有。
         var weapons = (request.Creators ?? []).Where(c => c.Id != null)
-            .ToDictionary(c => c.Id!.Value.ToString(), c => Visuals.Mapping.MappingFiles.HeroWeapon(c.Equips));
+            .ToDictionary(c => c.Id!.Value.ToString(), c => Visuals.Mapping.MappingFiles.HeroWeapon(c.Equips, configs[c.Id!.Value.ToString()]));
         var enemies = new HashSet<string>();
         // 技能 → 最近一次施放者（DQQ 投射物不带施放者：用它判定该技能的演法，例如弓射出的箭不另画）。
         var lastCaster = new Dictionary<string, string>();
@@ -57,7 +61,7 @@ public sealed class CombatRunner
         // 英雄的外观按种子里的角色 DTO（录像当时的装备，config/mapping/equipment.json 对应）。
         var heroes = (request.Creators ?? []).Where(c => c.Id != null).ToDictionary(
             c => c.Id!.Value.ToString(),
-            c => Visuals.Mapping.MappingFiles.HeroDress(c.Equips));
+            c => Visuals.Mapping.MappingFiles.HeroDress(c.Equips, configs[c.Id!.Value.ToString()]));
         foreach (var c in request.Creators ?? [])
             Console.WriteLine($"[combat] 种子英雄 {c.Id} {c.DisplayName}：DQQ 装备 " +
                 string.Join("、", (c.Equips ?? []).Select(p => $"{p.Key}={p.Value?.Profile?.ProfileNumber.ToString() ?? "空"}{(p.Value is { UniqueItemNumber: not DQQ.Enums.EnumUniqueItem.None } v ? $"（独特 {v.UniqueItemNumber}）" : "")}")) +
@@ -82,7 +86,7 @@ public sealed class CombatRunner
                 if (log.LogType is not (EnumLogType.CastSkill or EnumLogType.TriggerSpell
                     or EnumLogType.SkillRangeAndTarget or EnumLogType.DamageTaken or EnumLogType.HealingTaken
                     or EnumLogType.Killed or EnumLogType.ActorIsDown or EnumLogType.ActiveAura)) continue;
-                var ev = ToEvent(log, p.Tick, weapons, enemies);
+                var ev = ToEvent(log, p.Tick, weapons, enemies, configs, lastCaster);
                 // 光环（用户 2026-11-11）：同一个单位的同一个光环只在第一次激活时做施法动作（举手），之后被动激活不做任何动作。
                 if (log.LogType == EnumLogType.ActiveAura && !aurasOpened.Add($"{log.From?.Id}:{log.Skill?.SkillNumber}"))
                     ev = ev with { Action = "none", Spell = 0 };
@@ -104,14 +108,15 @@ public sealed class CombatRunner
                         if (!durationsSeen.Add(key)) continue;
                         var name = dn.ToString();
                         events.Add(new CombatEvent(key, tick, "DurationStart", null, a.Id.ToString(), null, [], null, null, 0, null, null,
-                            "Physics", 0, false, false, true, name, "duration", Visuals.Mapping.SkillLooks.DurationSpell(name), 0));
+                            "Physics", 0, false, false, true, name, "duration",
+                            Visuals.Mapping.SkillLooks.DurationSpell(name, configs.GetValueOrDefault(a.Id.ToString()!)), 0));
                     }
                 var frame = new CombatFrame(combatId, tick,
-                    (t.Players ?? []).Select(a => WithAuras(ToActor(a, "player"), a, false))
-                        .Concat((t.Enemies ?? []).Select(a => WithAuras(ToActor(a, "enemy"), a, true))).ToArray(),
+                    (t.Players ?? []).Select(a => WithAuras(ToActor(a, "player"), a, false, configs.GetValueOrDefault(a.Id?.ToString() ?? "")))
+                        .Concat((t.Enemies ?? []).Select(a => WithAuras(ToActor(a, "enemy"), a, true, null))).ToArray(),
                     (t.Projects ?? []).Select(a =>
                     {
-                        var (spell, spin) = ProjectSpell(a, lastCaster, weapons, enemies);
+                        var (spell, spin) = ProjectSpell(a, lastCaster, weapons, enemies, configs);
                         return ToActor(a, "project") with { Spell = spell, Spin = spin };
                     }).ToArray(),
                     events.ToArray(),
@@ -159,25 +164,26 @@ public sealed class CombatRunner
     /// 用 skills.json 的 projectile 法术（按元素）；射击、投掷的箭和标枪由施放时的法术画，这里为 0。
     /// </summary>
     private static (int Spell, bool Spin) ProjectSpell(TickLogActor a, Dictionary<string, string> lastCaster,
-        Dictionary<string, string?> weapons, HashSet<string> enemies)
+        Dictionary<string, string?> weapons, HashSet<string> enemies, Dictionary<string, Visuals.Mapping.CharConfig?> configs)
     {
         if (a.DisplayName == null || !SkillsByName.Value.TryGetValue(a.DisplayName, out var p)) return (0, false);
         var skill = p.ProfileNumber.ToString();
         var tags = p.OriginalTag.Select(t => t.ToString()).ToArray();
         var element = Visuals.Mapping.SkillLooks.ElementFor(tags, p.DamageType?.ToString(), "Physics");
         lastCaster.TryGetValue(skill, out var caster);
+        var cfg = caster != null ? configs.GetValueOrDefault(caster) : null;
         var play = Visuals.Mapping.SkillLooks.Play(skill, tags, element,
-            caster != null && weapons.TryGetValue(caster, out var w) ? w : null, caster != null && enemies.Contains(caster));
+            caster != null && weapons.TryGetValue(caster, out var w) ? w : null, caster != null && enemies.Contains(caster), cfg);
         if (play.Action is "shoot" or "wandShoot" or "throw") return (0, false);
         // 旋转技能的投射物（用户 2026-11-10）照常飞（按元素的飞行法术）；Spin 只是标出它碰到敌人时会放旋风。
-        return (Visuals.Mapping.SkillLooks.SpellFor("projectile", skill, element), play.Action is "spin" or "spinChannel");
+        return (Visuals.Mapping.SkillLooks.SpellFor("projectile", skill, element, cfg), play.Action is "spin" or "spinChannel");
     }
 
     /// <summary>单位身上的持续效果 → 常驻的 WoW 光环与范围圈（skills.json auras）。</summary>
-    private static ActorState WithAuras(ActorState s, TickLogActor a, bool enemy)
+    private static ActorState WithAuras(ActorState s, TickLogActor a, bool enemy, Visuals.Mapping.CharConfig? cfg)
     {
         var names = (a.Durations ?? []).Select(d => d.DurationNumber?.ToString()).Where(n => n != null).Select(n => n!);
-        var (auras, ring) = Visuals.Mapping.SkillLooks.AurasFor(names, enemy);
+        var (auras, ring) = Visuals.Mapping.SkillLooks.AurasFor(names, enemy, cfg);
         return auras.Length == 0 && ring == null ? s : s with { Auras = auras, Ring = ring };
     }
 
@@ -188,7 +194,8 @@ public sealed class CombatRunner
         a.TargetX, a.TargetY, kind == "enemy" && Visuals.WowLook.Oversize(a.MobNumber?.ToString()),
         kind == "enemy" ? Visuals.Mapping.MobLooks.Get(a.MobNumber?.ToString()).Dress : null);
 
-    private static CombatEvent ToEvent(TickLogItem log, int tick, Dictionary<string, string?> weapons, HashSet<string> enemies)
+    private static CombatEvent ToEvent(TickLogItem log, int tick, Dictionary<string, string?> weapons, HashSet<string> enemies,
+        Dictionary<string, Visuals.Mapping.CharConfig?> configs, Dictionary<string, string> lastCaster)
     {
         var skill = log.Skill;
         var tags = skill?.SkillTags ?? (skill?.SkillNumber is EnumSkillNumber n
@@ -205,20 +212,25 @@ public sealed class CombatRunner
         var tagNames = tags.Select(t => t.ToString()).ToArray();
         var defined = skill?.SkillNumber is EnumSkillNumber sn2 ? DQQPool.TryGet<SkillProfile, EnumSkillNumber>(sn2)?.DamageType?.ToString() : null;
         var look = Visuals.Mapping.SkillLooks.ElementFor(tagNames, defined, element);
-        var play = Visuals.Mapping.SkillLooks.Play(skill?.SkillNumber?.ToString(), tagNames, look,
-            from != null && weapons.TryGetValue(from, out var w) ? w : null, from != null && enemies.Contains(from));
+        var skillName = skill?.SkillNumber?.ToString();
+        var fromProjectile = from != null && !weapons.ContainsKey(from) && !enemies.Contains(from);
+        // 施放者的角色配置（PLAN-0011）：投射物发出的日志算最近一次施放这个技能的英雄的。
+        var cfg = from == null ? null : configs.GetValueOrDefault(from)
+            ?? (fromProjectile && skillName != null && lastCaster.TryGetValue(skillName, out var lc) ? configs.GetValueOrDefault(lc) : null);
+        var skin = skillName != null && cfg != null && cfg.Skills.TryGetValue(skillName, out var sk) ? sk : null;
+        var play = Visuals.Mapping.SkillLooks.Play(skillName, tagNames, look,
+            from != null && weapons.TryGetValue(from, out var w) ? w : null, from != null && enemies.Contains(from), cfg);
         // 技能区域日志：在区域中心播区域特效（火球爆炸、尸爆……，用户 2026-11-07）。
         var shape = log.SkillShape?.SkillShape.ToString();
         var scale = 1.0;
         // 旋转技能的投射物（用户 2026-11-10）碰到敌人时的区域日志出自投射物、不是单位：由投射物自己施放旋风斩
         // （projectileSpin：客户端找到这个投射物，让它施放；投射物已经没了才在那里另放）。单位自己转的旋风斩已有动作，不另播。
-        var fromProjectile = from != null && !weapons.ContainsKey(from) && !enemies.Contains(from);
         if (log.LogType == EnumLogType.SkillRangeAndTarget && play.Action is "spin" or "spinChannel" && fromProjectile)
-            play = new Visuals.Mapping.SkillPlay("projectileSpin", Visuals.Mapping.SkillLooks.SpellFor("spin", skill?.SkillNumber?.ToString(), look), play.School);
+            play = new Visuals.Mapping.SkillPlay("projectileSpin", Visuals.Mapping.SkillLooks.SpellFor("spin", skillName, look, cfg), play.School);
         else if (log.LogType == EnumLogType.SkillRangeAndTarget)
         {
             scale = Visuals.Mapping.SkillLooks.AreaScale(shape, log.SkillShape?.Range ?? 0);
-            play = Visuals.Mapping.SkillLooks.Area(shape, play.Action, look, tagNames, log.SkillShape?.Range ?? 0);
+            play = Visuals.Mapping.SkillLooks.Area(shape, play.Action, look, tagNames, log.SkillShape?.Range ?? 0, skin);
         }
         // 投射物技能的发射只播施法（飞行物由 DQQ 投射物画，见 ProjectSpell）。
         else if (play.Action is "projectile" or "channel" or "spinChannel" && log.LogType == EnumLogType.CastSkill) play = play with { Hit = false };

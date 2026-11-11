@@ -31,3 +31,7 @@ tools/commit-message-client.txt
 # 演示版启动器的构建产物（tools/run-launcher-build.cmd）
 /build/
 /dist/
+
+# 本地测试用的角色外观配置（PLAN-0011），只提交示例
+/config/char-config/*
+!/config/char-config/example.json

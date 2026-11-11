@@ -30,6 +30,10 @@ public static class SkillLooks
     private sealed record AuraLook(int Hero, int Enemy, int RingSpell, double RingRadius, int RingCount, string? RingDistance, int RingArea, double RingNative);
     private static readonly Dictionary<string, double> distances = new();
     private static Dictionary<string, AuraLook> auras = new();
+    /// <summary>地面模型库（groundModels，PLAN-0011）：名字 → (地面法术，模型原本的半径码)。范围圈与角色配置的 ring 按名字引用。</summary>
+    private static Dictionary<string, (int Spell, double Native)> groundModels = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>技能 → 它产生的持续效果（skillDurations）：角色配置按技能写的范围圈套到持续效果上（DQQ 的持续效果不带来源技能）。</summary>
+    private static Dictionary<string, string[]> skillDurations = new();
 
     /// <summary>DQQ 的距离档（EnumDistance，如 Middle）→ DQQ 距离。</summary>
     private static double DistanceOf(string name)
@@ -52,23 +56,83 @@ public static class SkillLooks
     }
 
     /// <summary>一个单位身上的持续效果 → 常驻光环（去重、排序，客户端按它写光环栏）与范围圈（最多一个）。</summary>
-    public static (int[] Auras, Protocol.AuraRing? Ring) AurasFor(IEnumerable<string> names, bool enemy)
+    /// <param name="cfg">这个单位自己的角色配置（PLAN-0011，只对英雄）：换常驻光环、范围圈。</param>
+    public static (int[] Auras, Protocol.AuraRing? Ring) AurasFor(IEnumerable<string> names, bool enemy, CharConfig? cfg = null)
     {
         var set = new SortedSet<int>();
         Protocol.AuraRing? ring = null;
         foreach (var n in names)
         {
-            if (!auras.TryGetValue(n, out var a)) continue;
-            var spell = enemy ? a.Enemy : a.Hero;
+            var skin = cfg?.DurationFor(n);
+            auras.TryGetValue(n, out var a);
+            if (a == null && skin == null) continue;
+            var spell = enemy ? a?.Enemy ?? 0 : skin?.Hero ?? a?.Hero ?? 0;
             if (spell > 0) set.Add(spell);
             // 范围圈只给效果的主人（英雄一侧）：敌人身上的同名效果是被烧。
-            if (!enemy && (a.RingSpell > 0 || a.RingArea > 0) && ring == null)
+            if (enemy || ring != null) continue;
+            if (skin?.Ring is { } r)
+            {
+                // 换了的圈（用户 2026-11-11：正义之火用奉献）：模型换掉，大小仍按 DQQ 的判定范围（没写距离就用全局的）。
+                var radius = r.Distance != null ? DistanceOf(r.Distance) : r.Radius > 0 ? r.Radius
+                    : a?.RingDistance != null ? DistanceOf(a.RingDistance) : a?.RingRadius ?? 0;
+                if (radius > 0) ring = new Protocol.AuraRing(0, radius, 0, r.Area, r.Native);
+            }
+            else if (a != null && (a.RingSpell > 0 || a.RingArea > 0))
             {
                 var radius = a.RingDistance != null ? DistanceOf(a.RingDistance) : a.RingRadius;
                 if (radius > 0) ring = new Protocol.AuraRing(a.RingSpell, radius, a.RingCount, a.RingArea, a.RingNative);
             }
         }
         return (set.ToArray(), ring);
+    }
+
+    /// <summary>地面模型库的名字（技能皮肤窗口的选项）。</summary>
+    public static IReadOnlyCollection<string> GroundModelNames => groundModels.Keys;
+
+    /// <summary>
+    /// 能换范围圈的技能（技能皮肤窗口，PLAN-0011）：skillDurations 里的技能，它产生的持续效果在 auras 里有范围圈。
+    /// 返回 (技能, 默认的地面模型名；不在库里为 null)。
+    /// </summary>
+    public static IEnumerable<(string Skill, string? Default)> RingSkills() =>
+        skillDurations
+            .Select(p => (p.Key, Look: p.Value.Select(d => auras.GetValueOrDefault(d)).FirstOrDefault(a => a != null && (a.RingArea > 0 || a.RingSpell > 0))))
+            .Where(x => x.Look != null)
+            .Select(x => (x.Key, groundModels.FirstOrDefault(g => g.Value.Spell == x.Look!.RingArea).Key));
+
+    /// <summary>产生这个持续效果的技能（skillDurations）。</summary>
+    public static IEnumerable<string> SkillsOf(string duration) =>
+        skillDurations.Where(p => p.Value.Contains(duration)).Select(p => p.Key);
+
+    /// <summary>
+    /// 一个范围圈的写法（auras.*.ring 与角色配置的 ring）：地面模型库的名字（字符串），地面法术 id（数字），
+    /// 或 <c>{ "model": 名字或法术 id, "distance": EnumDistance 名或数字 }</c>。不可用为 null。
+    /// </summary>
+    public static GroundRing? ParseRingSkin(JsonElement v, string at, List<string> errors)
+    {
+        JsonElement model = v; string? distance = null; double radius = 0;
+        if (v.ValueKind == JsonValueKind.Object)
+        {
+            if (!v.TryGetProperty("model", out model)) { errors.Add($"{at}：缺少 model（地面模型库的名字或地面法术 id）"); return null; }
+            if (v.TryGetProperty("distance", out var dv))
+            {
+                if (dv.ValueKind == JsonValueKind.Number) radius = dv.GetDouble();
+                else if (Enum.TryParse<DQQ.Enums.EnumDistance>(dv.GetString(), out _)) distance = dv.GetString();
+                else errors.Add($"{at}.distance：DQQ 没有这个距离档 \"{dv.GetString()}\"（EnumDistance）");
+            }
+        }
+        if (model.ValueKind == JsonValueKind.String)
+        {
+            if (groundModels.TryGetValue(model.GetString()!, out var gm)) return new GroundRing(gm.Spell, gm.Native, distance, radius);
+            errors.Add($"{at}：地面模型库（skills.json groundModels）里没有 \"{model.GetString()}\""); return null;
+        }
+        if (model.ValueKind == JsonValueKind.Number && model.TryGetInt32(out var id) && id > 0)
+        {
+            var known = groundModels.Values.FirstOrDefault(g => g.Spell == id);
+            if (known.Spell == 0) errors.Add($"{at}：法术 {id} 不在地面模型库里，原本半径按 8 码（大小可能不对）");
+            return new GroundRing(id, known.Spell == 0 ? 8 : known.Native, distance, radius);
+        }
+        errors.Add($"{at}：要写地面模型库的名字、地面法术 id，或 {{ \"model\": …, \"distance\": … }}");
+        return null;
     }
     /// <summary>形状 → 按大小分档（upTo：DQQ 半径不超过它用这一档；没写 = 其余）。</summary>
     private static Dictionary<string, List<(double? UpTo, Dictionary<string, int> Spell, double Radius)>> areas = new();
@@ -80,7 +144,7 @@ public static class SkillLooks
     private static HashSet<(string, string)> rayCasts = [];
 
     /// <summary>读取结果的一句话（runtime 日志）。</summary>
-    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、射线 {rays.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}、光环 {auras.Count}";
+    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、射线 {rays.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}、光环 {auras.Count}、地面模型 {groundModels.Count}";
 
     public static IReadOnlyDictionary<string, (int School, string Note)> Elements => elements;
     public static IReadOnlyDictionary<string, (string? Action, Dictionary<string, int>? Spell)> Skills => skills;
@@ -130,6 +194,39 @@ public static class SkillLooks
                 if (s.Value.TryGetProperty("hit", out var hv) && hv.ValueKind == JsonValueKind.False) nh.Add(s.Name);
             }
 
+        // groundModels（PLAN-0011）：地面模型库，范围圈按名字引用。
+        var gms = new Dictionary<string, (int, double)>(StringComparer.OrdinalIgnoreCase);
+        if (root.TryGetProperty("groundModels", out var gmx) && gmx.ValueKind == JsonValueKind.Object)
+            foreach (var g in gmx.EnumerateObject())
+            {
+                var at = $"{file} groundModels.{g.Name}";
+                var spell = MappingFiles.Int(g.Value, "spell") ?? 0;
+                var native = g.Value.TryGetProperty("native", out var nv) && nv.ValueKind == JsonValueKind.Number ? nv.GetDouble() : 0;
+                if (spell <= 0 || native <= 0) { errors.Add($"{at}：要写 spell（地面法术 id）和 native（模型原本的半径，码）"); continue; }
+                gms[g.Name] = (spell, native);
+            }
+        groundModels = gms;
+
+        // skillDurations：技能 → 它产生的持续效果。
+        var sds = new Dictionary<string, string[]>();
+        if (root.TryGetProperty("skillDurations", out var sdx) && sdx.ValueKind == JsonValueKind.Object)
+            foreach (var p in sdx.EnumerateObject())
+            {
+                var at = $"{file} skillDurations.{p.Name}";
+                if (!Enum.TryParse<DQQ.Enums.EnumSkillNumber>(p.Name, out _)) errors.Add($"{at}：DQQ 没有这个技能（EnumSkillNumber），拼写？");
+                string[] list = p.Value.ValueKind switch
+                {
+                    JsonValueKind.Array => p.Value.EnumerateArray().Select(x => x.GetString() ?? "").ToArray(),
+                    JsonValueKind.String => [p.Value.GetString()!],
+                    _ => [],
+                };
+                foreach (var d in list)
+                    if (!Enum.TryParse<DQQ.Enums.EnumDurationNumber>(d, out _)) errors.Add($"{at}：DQQ 没有这个持续效果 \"{d}\"（EnumDurationNumber）");
+                if (list.Length == 0) errors.Add($"{at}：要写持续效果名，或它们的数组");
+                sds[p.Name] = list;
+            }
+        skillDurations = sds;
+
         // auras：持续效果在身上时常驻的 WoW 光环。数字 = 谁身上都用；对象 = { hero, enemy, ring: { spell, distance, count } }。
         var aus = new Dictionary<string, AuraLook>();
         if (root.TryGetProperty("auras", out var axs) && axs.ValueKind == JsonValueKind.Object)
@@ -146,6 +243,12 @@ public static class SkillLooks
                     ringSpell = MappingFiles.Int(rg, "spell") ?? 0;
                     area = MappingFiles.Int(rg, "area") ?? 0;
                     native = rg.TryGetProperty("native", out var nv) && nv.ValueKind == JsonValueKind.Number ? nv.GetDouble() : 8;
+                    // model：地面模型库的名字（PLAN-0011），代替 area + native。
+                    if (MappingFiles.Str(rg, "model") is { } mname)
+                    {
+                        if (gms.TryGetValue(mname, out var gm)) (area, native) = gm;
+                        else errors.Add($"{at}.ring.model：groundModels 里没有 \"{mname}\"");
+                    }
                     count = MappingFiles.Int(rg, "count") ?? 12;
                     if (rg.TryGetProperty("distance", out var dv))
                     {
@@ -269,8 +372,8 @@ public static class SkillLooks
     }
 
     /// <summary>持续效果开始时播的 WoW 法术；没配 = 不播（大多数持续效果）。</summary>
-    public static int DurationSpell(string? duration) =>
-        duration != null && durations.TryGetValue(duration, out var s) ? s : 0;
+    public static int DurationSpell(string? duration, CharConfig? cfg = null) =>
+        duration == null ? 0 : cfg?.DurationFor(duration)?.Start ?? (durations.TryGetValue(duration, out var s) ? s : 0);
 
     /// <summary>
     /// 角色动作，按 docs/skill-presentation.md §2.1 / §2.1.1 的顺序判定（个别技能可在 skills.json 覆盖）。
@@ -303,10 +406,12 @@ public static class SkillLooks
     }
 
     /// <summary>动作 + 元素 → WoW 法术：先看技能覆盖，再看动作表（元素，再 "*"）；都没有为 0。</summary>
-    public static int SpellFor(string action, string? skill, string? element)
+    /// <param name="cfg">施放者的角色配置（PLAN-0011）：skills.*.spell 盖过全局。</param>
+    public static int SpellFor(string action, string? skill, string? element, CharConfig? cfg = null)
     {
         static int Pick(Dictionary<string, int> m, string? el) =>
             el != null && m.TryGetValue(el, out var s) ? s : m.TryGetValue("*", out var any) ? any : 0;
+        if (skill != null && cfg != null && cfg.Skills.TryGetValue(skill, out var own) && own.Spell is { Count: > 0 } osp) return Pick(osp, element);
         if (skill != null && skills.TryGetValue(skill, out var o) && o.Spell is { Count: > 0 } sp) return Pick(sp, element);
         return actions.TryGetValue(action, out var m) ? Pick(m, element) : 0;
     }
@@ -324,10 +429,25 @@ public static class SkillLooks
     /// 按半径缩放（<see cref="SkillPlay"/> 的第二个值为法术，缩放另算见 <see cref="AreaScale"/>）。
     /// 新星、旋风斩、引导自己已有范围表现，不重复；没配的形状不播。
     /// </summary>
-    public static SkillPlay Area(string? shape, string action, string? element, IReadOnlyCollection<string> tags, double range)
+    /// <param name="skin">施放者对这个技能的皮肤（PLAN-0011）：ray 换射线、area 换区域爆发。</param>
+    public static SkillPlay Area(string? shape, string action, string? element, IReadOnlyCollection<string> tags, double range, SkillSkin? skin = null)
     {
         if (shape == null)
             return new SkillPlay("none", 0, School(element));
+        if (skin is { Ray: > 0 } && rays.ContainsKey(shape))
+        {
+            var key = PickKey(rays[shape], element, tags);
+            return new SkillPlay("ray", skin.Ray, School(element))
+            {
+                Color = skin.RayColor ?? (key != null && rayColors.TryGetValue((shape, key), out var c0) ? c0 : null),
+                Channel = key == null || !rayCasts.Contains((shape, key)),
+            };
+        }
+        if (skin?.Area is { Count: > 0 } own && !rays.ContainsKey(shape) && action is not ("nova" or "spin" or "spinChannel" or "channel"))
+        {
+            var sp = Pick(own, element, tags);
+            if (sp > 0) return new SkillPlay("area", sp, School(element));
+        }
         // 散射：从散射的出发点（如火球爆炸中心）向结束处画射线，形态和颜色按技能标签（用户 2026-11-07）。
         // 引导技能（奥术洪流）的散射也画：每个被选中的目标一道光束。
         if (rays.TryGetValue(shape, out var ray))
@@ -370,9 +490,11 @@ public static class SkillLooks
             : null;
 
     /// <summary>一个技能事件的演法。</summary>
-    public static SkillPlay Play(string? skill, IReadOnlyCollection<string> tags, string? element, string? weapon, bool enemy)
+    /// <param name="cfg">施放者的角色配置（PLAN-0011）：skills.* 换动作、借用的法术。</param>
+    public static SkillPlay Play(string? skill, IReadOnlyCollection<string> tags, string? element, string? weapon, bool enemy, CharConfig? cfg = null)
     {
-        var action = ActionFor(skill, tags, weapon, enemy);
-        return new SkillPlay(action, SpellFor(action, skill, element), School(element), skill == null || !noHit.Contains(skill));
+        var action = (skill != null && cfg != null && cfg.Skills.TryGetValue(skill, out var own) ? own.Action : null)
+            ?? ActionFor(skill, tags, weapon, enemy);
+        return new SkillPlay(action, SpellFor(action, skill, element, cfg), School(element), skill == null || !noHit.Contains(skill));
     }
 }

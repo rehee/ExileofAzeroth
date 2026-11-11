@@ -84,7 +84,81 @@ public sealed class MessageRouter
                 break;
             case "ui.character.list":
                 Visuals.Mapping.MappingFiles.Refresh();
-                await Send(conn, "ui.character.list.result", msg.Seq, (await dqq.GetCharacters()).Select(Summarize).ToArray(), ct);
+                // 显示 / 隐藏角色自己的外观（PLAN-0011：幻化与技能皮肤，插件的 Skins 按钮，用户 2026-11-11）。
+                if (msg.Data is JsonObject lo && lo["skins"] is JsonValue sv && sv.TryGetValue<bool>(out var skinsOn))
+                {
+                    Visuals.Mapping.CharConfig.Enabled = skinsOn;
+                    Console.WriteLine($"[char-config] 幻化与技能皮肤：{(skinsOn ? "显示" : "隐藏")}");
+                }
+                await Send(conn, "ui.character.list.result", msg.Seq, (await dqq.GetCharacters()).Select(c => Summarize(c)).ToArray(), ct);
+                break;
+            // 梳妆台与幻化（PLAN-0011）：改动先预览（不存），保存时写回 DQQ，取消就丢掉。回答都是只含这个角色的角色列表，
+            // 客户端照 Reload Gear 的办法穿上。
+            case "ui.character.edit":
+            case "ui.character.save":
+            case "ui.character.cancel":
+                Visuals.Mapping.MappingFiles.Refresh();
+                var eo = msg.Data as JsonObject;
+                var editId = eo?["characterId"]?.GetValue<string>();
+                if (!Guid.TryParse(editId, out var editGuid)) throw new InvalidOperationException("角色 id 不对。");
+                // 编辑时显示角色自己的外观（插件的 Skins 按钮不管）。
+                Visuals.Mapping.CharConfig.Enabled = true;
+                // 预览用开始编辑时取的那份角色（不每次都问服务器）；保存、取消时按 id 重新取。
+                var who = (msg.Type == "ui.character.edit" ? Visuals.Mapping.Wardrobe.Character(editId) : null)
+                    ?? await dqq.GetCharacter(editGuid)
+                    ?? throw new InvalidOperationException("找不到这个角色。");
+                CharacterSummary shown;
+                if (msg.Type == "ui.character.edit")
+                {
+                    var cfg = Visuals.Mapping.Wardrobe.Apply(who, eo?["change"] as JsonObject ?? new JsonObject());
+                    shown = Summarize(who, cfg);
+                }
+                else if (msg.Type == "ui.character.save")
+                {
+                    if (Visuals.Mapping.Wardrobe.Pending(who) is { } json)
+                    {
+                        // 先保存、等它完成，再按 id 取回角色，按取回来的配置更新人物（用户 2026-11-11）。
+                        await dqq.SaveCharConfig(editGuid, json);
+                        Console.WriteLine($"[wardrobe] 已保存 {who.DisplayName} 的 WoWCharConfig（{json.Length} 字）：{json}");
+                        Visuals.Mapping.Wardrobe.Drop(editId);
+                        who = await dqq.GetCharacter(editGuid) ?? who;
+                        Console.WriteLine($"[wardrobe] 取回 {who.DisplayName}：{who.WoWCharConfig ?? "（空）"}");
+                        if (who.WoWCharConfig != json)
+                        {
+                            Console.WriteLine($"[wardrobe] 保存后取回的 WoWCharConfig 不一致：{(who.WoWCharConfig == null ? "空" : who.WoWCharConfig)}");
+                            await Send(conn, "error", msg.Seq, new ErrorData(
+                                "Saved, but DQQ returned the character without it (is the DQQ server updated?)."), ct);
+                        }
+                    }
+                    shown = Summarize(who);
+                }
+                else
+                {
+                    Visuals.Mapping.Wardrobe.Drop(editId);
+                    shown = Summarize(who);
+                }
+                await Send(conn, msg.Type + ".result", msg.Seq, new[] { shown }, ct);
+                break;
+            // 插件的 Skins 按钮的状态（插件每次加载时同步一次，不重新穿）。
+            case "ui.skins":
+                if (msg.Data is JsonObject so && so["skins"] is JsonValue sv2 && sv2.TryGetValue<bool>(out var on2))
+                {
+                    Visuals.Mapping.CharConfig.Enabled = on2;
+                    Console.WriteLine($"[char-config] 幻化与技能皮肤：{(on2 ? "显示" : "隐藏")}（插件同步）");
+                }
+                break;
+            // 技能皮肤窗口（PLAN-0011）：能换皮肤的技能与选项。
+            case "ui.skill.skins":
+                Visuals.Mapping.MappingFiles.Refresh();
+                var sid = (msg.Data as JsonObject)?["characterId"]?.GetValue<string>();
+                if (!Guid.TryParse(sid, out var sguid)) throw new InvalidOperationException("角色 id 不对。");
+                var schar = Visuals.Mapping.Wardrobe.Character(sid) ?? await dqq.GetCharacter(sguid)
+                    ?? throw new InvalidOperationException("找不到这个角色。");
+                await Send(conn, "ui.skill.skins.result", msg.Seq, Visuals.Mapping.Wardrobe.SkinOptions(schar), ct);
+                break;
+            case "ui.wow.items":
+                Visuals.Mapping.MappingFiles.Refresh();
+                await Send(conn, "ui.wow.items.result", msg.Seq, Visuals.Mapping.Wardrobe.NamedItems(), ct);
                 break;
             case "combat.start":
                 Visuals.Mapping.MappingFiles.Refresh();
@@ -246,14 +320,21 @@ public sealed class MessageRouter
         }, token);
     }
 
-    public static CharacterSummary Summarize(CharacterDTO c) => new(
-        c.Id?.ToString() ?? "", c.DisplayName ?? "", Convert.ToInt32(c.Level), c.CombatArcheTypeNumber.ToString(),
-        (c.Equips ?? []).Where(p => p.Value != null)
-            .ToDictionary(p => p.Key.ToString(), p => new EquipSummary(p.Value!.Profile?.ProfileNumber.ToString() ?? "", p.Value.Profile?.Name)),
-        Visuals.Mapping.MappingFiles.HeroLook.Race, Visuals.WowLook.WowClass(c.CombatArcheTypeNumber.ToString()),
-        Visuals.Mapping.MappingFiles.HeroLook.Gender, Visuals.WowLook.DisplayHumanFemale,
-        // 英雄的统一外观穿上 DQQ 装备（config/mapping/equipment.json）：客户端用在自由模式与回放里的本体上。
-        Visuals.Mapping.MappingFiles.HeroDress(c.Equips));
+    public static CharacterSummary Summarize(CharacterDTO c) => Summarize(c, Visuals.Mapping.CharConfig.For(c));
+
+    /// <param name="cfg">套用的角色配置（梳妆台、幻化的预览用正在改的那份）。</param>
+    public static CharacterSummary Summarize(CharacterDTO c, Visuals.Mapping.CharConfig? cfg)
+    {
+        // 英雄的统一外观穿上 DQQ 装备（config/mapping/equipment.json），再按角色自己的 WoWCharConfig（PLAN-0011）换长相、幻化：
+        // 客户端用在选人界面、自由模式与回放里的本体上。
+        var dress = Visuals.Mapping.MappingFiles.HeroDress(c.Equips, cfg);
+        return new(
+            c.Id?.ToString() ?? "", c.DisplayName ?? "", Convert.ToInt32(c.Level), c.CombatArcheTypeNumber.ToString(),
+            (c.Equips ?? []).Where(p => p.Value != null)
+                .ToDictionary(p => p.Key.ToString(), p => new EquipSummary(p.Value!.Profile?.ProfileNumber.ToString() ?? "", p.Value.Profile?.Name)),
+            dress.Race, Visuals.WowLook.WowClass(c.CombatArcheTypeNumber.ToString()),
+            dress.Gender, Visuals.WowLook.DisplayHumanFemale, dress);
+    }
 
     private Task Send(BridgeConnection conn, string type, long? re, object? data, CancellationToken ct)
     {

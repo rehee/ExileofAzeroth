@@ -1,8 +1,7 @@
 // DQQ 角色外观与装备 → WoW（PLAN-0006 C）。字段说明见 docs/mapping-config.md §2.4。
 // 改完保存即可：下次进入世界（选人）或开始回放时生效。
 {
-  // 所有 DQQ 角色统一一套外观（用户 2026-11-07，D20）：人类女性，长相固定。
-  "hero": { "race": "human", "gender": "female", "skin": 0, "face": 0, "hair": 0, "hairColor": 0 },
+  // 英雄的种族、性别、长相不在这里：从角色配置 WoWCharConfig 来（梳妆台），空的就是人类女性（用户 2026-11-11）。
 
   // DQQ 装备槽（EnumEquipSlot）→ WoW 装备槽；项链、戒指不显示，不写。
   "slots": {

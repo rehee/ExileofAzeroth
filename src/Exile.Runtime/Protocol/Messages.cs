@@ -64,7 +64,8 @@ public sealed record AuraRing(int Spell, double Radius, int Count, int Area = 0,
 /// 穿装备的人形外观（PLAN-0006）：客户端把它建成玩家式单位，种族、性别、长相加身上的装备（<c>ItemDisplayInfo</c> id）。
 /// 有它时 <c>model</c> 不用。
 /// </summary>
-public sealed record Dress(int Race, int Gender, int Skin, int Face, int Hair, int HairColor, DressItem[] Items);
+/// <remarks>FacialHair：胡子 / 耳环等（PLAYER_BYTES_2 字节 0），角色配置（PLAN-0011）的 look.facialHair。</remarks>
+public sealed record Dress(int Race, int Gender, int Skin, int Face, int Hair, int HairColor, DressItem[] Items, int FacialHair = 0);
 
 /// <summary>
 /// 一件装备：装备槽（0 头 … 4 胸 … 15 主手 16 副手）、外观 id、InventoryType、物品大类与子类，
