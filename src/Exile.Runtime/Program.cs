@@ -30,7 +30,8 @@ if (options.MappingReport)
 await using var dqq = DqqHost.Create(options.ApiBaseUrl);
 Console.WriteLine("[runtime] DQQ service 已注册");
 
-if (options.TestUser != null && options.TestPassword != null)
+if (options.PlayerLogin) Console.WriteLine("[runtime] 等玩家在登录界面输入 DQQ 账号（auth.login）");
+else if (options.TestUser != null && options.TestPassword != null)
 {
     await dqq.LoginOnline(options.TestUser, options.TestPassword);
     Console.WriteLine($"[runtime] 在线登录成功：{options.TestUser}");

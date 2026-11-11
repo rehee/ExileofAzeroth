@@ -60,6 +60,28 @@ public sealed class MessageRouter
         {
             case "hello":
                 break;
+            case "auth.login":
+                // 玩家在 WoW 登录界面输入的 DQQ 账号（EoALauncher）：在线登录。密码只在内存里，不记日志、不落盘。
+                var al = msg.Data?.Deserialize<AuthLoginRequest>(ProtocolJson.Options);
+                AuthLoginResult answer;
+                try
+                {
+                    await dqq.LoginOnline(al?.User ?? "", al?.Password ?? "");
+                    Console.WriteLine($"[auth] 在线登录成功：{al?.User}");
+                    answer = new AuthLoginResult(true, null, null);
+                }
+                catch (InvalidOperationException e)
+                {
+                    Console.WriteLine($"[auth] 登录被拒：{al?.User}（{e.Message}）");
+                    answer = new AuthLoginResult(false, "credentials", e.Message);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"[auth] 连不上 DQQ 服务器：{e.Message}");
+                    answer = new AuthLoginResult(false, "network", e.Message);
+                }
+                await Send(conn, "auth.login.result", msg.Seq, answer, ct);
+                break;
             case "ui.character.list":
                 Visuals.Mapping.MappingFiles.Refresh();
                 await Send(conn, "ui.character.list.result", msg.Seq, (await dqq.GetCharacters()).Select(Summarize).ToArray(), ct);

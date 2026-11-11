@@ -2,22 +2,15 @@
 . (Join-Path $PSScriptRoot '_common.ps1')
 Start-ExileLog 'wow-dbc'
 try {
-    $cargo = (Get-Command cargo -ErrorAction SilentlyContinue).Source
-    if (-not $cargo) {
-        $rustHome = if ($env:EXILE_RUST_HOME) { $env:EXILE_RUST_HOME } else { 'C:\wow_survival\tools' }
-        $env:CARGO_HOME = Join-Path $rustHome 'cargo'
-        $env:RUSTUP_HOME = Join-Path $rustHome 'rustup'
-        $env:PATH = (Join-Path $env:CARGO_HOME 'bin') + ';' + $env:PATH
-        $cargo = Join-Path $env:CARGO_HOME 'bin\cargo.exe'
-    }
-    $data = if ($env:WOW_DATA) { $env:WOW_DATA } else { 'C:\wow_survival\wow-data\Data' }
+    $cargo = Use-ExileRust
+    $data = Get-WowData
     Set-Location (Join-Path $RepoRoot 'client')
     Invoke-Exile $cargo @('build', '--profile', 'play', '-p', 'benilla-formats', '--bin', 'benilla-extract')
     $exe = Join-Path $RepoRoot 'client\target\play\benilla-extract.exe'
     $out = Join-Path $PSScriptRoot 'logs\wow-dbc'
     New-Item -ItemType Directory -Force $out | Out-Null
     $names = 'CreatureDisplayInfo','CreatureDisplayInfoExtra','CreatureModelData','CreatureFamily','CreatureType',
-             'Spell','SpellChainEffects','SpellVisual','SpellVisualKit','SpellVisualEffectName','SpellIcon','SpellCastTimes','SpellMissile',
+             'Spell','SpellChainEffects','SpellVisual','SpellVisualKit','SpellVisualEffectName','SpellIcon','SpellCastTimes','SpellMissile','SoundEntries',
              'AnimationData','ItemDisplayInfo','CharSections','CharHairGeosets','ChrRaces','ChrClasses','AreaTable','Map','Lock'
     foreach ($n in $names) {
         try { Invoke-Exile $exe @($data, 'extract', "DBFilesClient\$n.dbc", (Join-Path $out "$n.dbc")) } catch { Write-ExileLog "跳过 $n：$_" }

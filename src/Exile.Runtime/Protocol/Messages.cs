@@ -48,8 +48,10 @@ public sealed record CombatBegin(string CombatId, string Map, string Mode, int T
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
-    double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null, int Spell = 0);
+    double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null, int Spell = 0, bool Spin = false);
 // Spell（只对 kind = project）：这个 DQQ 投射物借用的 WoW 飞行法术（0 = 不画，例如弓的箭由施放时的自动射击画），PLAN-0006 D。
+// Spin（只对 kind = project，用户 2026-11-10）：带 Spin 标签的技能的投射物。照常飞；碰到敌人时由它自己施放旋风斩
+// （事件 action = projectileSpin）。
 
 /// <summary>
 /// 穿装备的人形外观（PLAN-0006）：客户端把它建成玩家式单位，种族、性别、长相加身上的装备（<c>ItemDisplayInfo</c> id）。
@@ -57,8 +59,11 @@ public sealed record ActorState(string Id, string Kind, double X, double Y, doub
 /// </summary>
 public sealed record Dress(int Race, int Gender, int Skin, int Face, int Hair, int HairColor, DressItem[] Items);
 
-/// <summary>一件装备：装备槽（0 头 … 4 胸 … 15 主手 16 副手）、外观 id、InventoryType、物品大类与子类。</summary>
-public sealed record DressItem(int Slot, int DisplayId, int InventoryType, int ItemClass, int ItemSubclass);
+/// <summary>
+/// 一件装备：装备槽（0 头 … 4 胸 … 15 主手 16 副手）、外观 id、InventoryType、物品大类与子类，
+/// 收起时挂在哪（Sheath：0 按种类，1 斜背在背上，2 法杖竖背，3 身侧，4 盾背在背上）。
+/// </summary>
+public sealed record DressItem(int Slot, int DisplayId, int InventoryType, int ItemClass, int ItemSubclass, int Sheath = 0);
 public sealed record CombatEvent(string Id, int Tick, string Kind, string? From, string? Target,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
     string Element, double Amount, bool Critical, bool Killed, bool Success,
@@ -84,3 +89,8 @@ public sealed record Battlefield(string Map, string Scene, int WowMap, double[] 
 public sealed record CombatPrepareRequest(string? ReplayId, string? CharacterId, string? File = null, string? Scene = null);
 
 public sealed record MobLookEntry(string Mob, int DisplayId, bool Boss, Dress? Dress = null);
+
+/// <summary>auth.login：玩家在登录界面输入的 DQQ 账号（EoALauncher 演示版）。</summary>
+public sealed record AuthLoginRequest(string? User, string? Password);
+/// <summary>auth.login.result：Ok；失败时 Code = credentials（账号或密码不对）或 network（连不上服务器）。</summary>
+public sealed record AuthLoginResult(bool Ok, string? Code, string? Error);

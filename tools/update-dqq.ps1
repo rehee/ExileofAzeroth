@@ -1,10 +1,10 @@
 ﻿# 编译 DQQ 三个核心项目，把它们和全部依赖（含中文资源）复制到 source/dqq/（D23）。
 # 跳过 DQQ 的本地化同步（它会改写 DQQ 目录里的生成文件，违反 DQQ 零改动）；只用 DQQ 现有资源。
-# 用法：右键 -> 使用 PowerShell 运行。可选环境变量 DQQ_ROOT 覆盖 DQQ 源码路径。
+# 用法：双击 run-update-dqq.cmd。DQQ 源码目录：config\dev.local.json 的 paths.dqqRoot（可用环境变量 DQQ_ROOT 临时覆盖）。
 . (Join-Path $PSScriptRoot '_common.ps1')
 Start-ExileLog 'update-dqq'
 try {
-    $dqqRoot = if ($env:DQQ_ROOT) { $env:DQQ_ROOT } else { 'C:\code\dqq\DQQ' }
+    $dqqRoot = Get-DqqRoot
     $collector = Join-Path $PSScriptRoot 'dqq-collector\DqqCollector.csproj'
     $tmp = Join-Path $env:TEMP "exile-dqq-$(Get-Date -Format yyyyMMddHHmmss)"
     $dest = Join-Path $RepoRoot 'source\dqq'

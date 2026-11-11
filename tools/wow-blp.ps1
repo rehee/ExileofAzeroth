@@ -2,7 +2,7 @@
 . (Join-Path $PSScriptRoot '_common.ps1')
 Start-ExileLog 'wow-blp'
 try {
-    $data = if ($env:WOW_DATA) { $env:WOW_DATA } else { 'C:\wow_survival\wow-data\Data' }
+    $data = Get-WowData
     $exe = Join-Path $RepoRoot 'client\target\play\benilla-extract.exe'
     if (-not (Test-Path $exe)) { throw '找不到 benilla-extract.exe，请先运行 run-wow-dbc' }
     $out = Join-Path $LogDir 'wow-blp'

@@ -7,9 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <SatelliteResourceLanguages>zh-Hans;zh-CN;zh;en</SatelliteResourceLanguages>
   </PropertyGroup>
-  <PropertyGroup>
-    <DqqRoot Condition="'$(DqqRoot)' == ''">C:\code\dqq\DQQ</DqqRoot>
-  </PropertyGroup>
+  <!-- DqqRoot 由 tools/update-dqq.ps1 按 config/dev.local.json 的 paths.dqqRoot 传入（-p:DqqRoot=...），这里不写死本机路径。 -->
+  <Target Name="ExileRequireDqqRoot" BeforeTargets="Restore;Build" Condition="'$(DqqRoot)' == ''">
+    <Error Text="缺少 DqqRoot：请用 tools/run-update-dqq.cmd 编译（它读取 config/dev.local.json 的 paths.dqqRoot）。" />
+  </Target>
   <ItemGroup>
     <ProjectReference Include="$(DqqRoot)\DQQ\DQQ.csproj" />
     <ProjectReference Include="$(DqqRoot)\DQQ.Core\DQQ.Core.csproj" />

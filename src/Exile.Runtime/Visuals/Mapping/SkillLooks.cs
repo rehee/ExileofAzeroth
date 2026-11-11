@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace Exile.Runtime.Visuals.Mapping;
 
@@ -46,7 +46,7 @@ public static class SkillLooks
 
     /// <summary>所有动作名（规则可能给出的）；<c>skills.json</c> 的 actions 与 skills.*.action 只能用这些。</summary>
     public static readonly string[] KnownActions =
-        ["melee", "mobAttack", "shoot", "throw", "projectile", "cast", "channel", "spin", "nova", "shout",
+        ["melee", "mobAttack", "shoot", "wandShoot", "throw", "projectile", "cast", "channel", "spin", "spinChannel", "nova", "shout",
          "aura", "kick", "charge", "judgement", "none"];
 
     public static void Load(string path, List<string> errors)
@@ -206,9 +206,15 @@ public static class SkillLooks
         if (skills.TryGetValue(skill, out var o) && o.Action != null) return o.Action;
         bool Has(string t) => tags.Contains(t);
         if (tags.Count == 0) return enemy ? "mobAttack" : "melee";              // 怪物专用技能：怪物自己的攻击动画
-        if (Has("Channel")) return "channel";                                   // 1 引导（旋风斩在 skills 覆盖为 spin）
+        // 0 旋转（Spin 标签，用户 2026-11-10）：英雄、怪物都转（模型有旋转动作的话），带旋风特效与呼呼声；
+        // 加引导标签就一直转（同引导的判断：有日志就延长，约 0.8 秒没有就停）。
+        if (Has("Spin")) return Has("Channel") ? "spinChannel" : "spin";
+        if (Has("Channel")) return "channel";                                   // 1 引导
         var ranged = weapon != null && Ranged.Contains(weapon);
-        if (Has("Attack") && !Has("Melee") && ranged) return weapon == "thrown" ? "throw" : "shoot"; // 2 远程武器 + 非肉搏攻击
+        // 1.5 主手魔杖（用户 2026-11-10）：带肉搏、不带投射物的攻击按匕首刺；其他攻击用魔杖射击（actions.wandShoot）。
+        if (weapon == "wand" && Has("Attack")) return Has("Melee") && !Has("Project") ? "melee" : "wandShoot";
+        // 2 远程武器的攻击（用户 2026-11-09）：都是射击；只有带肉搏、不带投射物标签的，用双手武器挥砍（拿着弓砍）。
+        if (Has("Attack") && ranged) return Has("Melee") && !Has("Project") ? "melee" : weapon == "thrown" ? "throw" : "shoot";
         if (Has("Project")) return Has("Attack") && Has("Melee") ? "melee" : "projectile";        // 3 投射物（刀光剑影类仍挥砍）
         if (Has("Attack")) return enemy ? "mobAttack" : "melee";                // 4 攻击（肉搏，或拿近战武器的非肉搏攻击）
         if (Has("Nova")) return "nova";
@@ -258,7 +264,7 @@ public static class SkillLooks
                 Channel = key == null || !rayCasts.Contains((shape, key)),
             };
         }
-        if (action is "nova" or "spin" or "channel" || Band(shape, range) is not { } a)
+        if (action is "nova" or "spin" or "spinChannel" or "channel" || Band(shape, range) is not { } a)
             return new SkillPlay("none", 0, School(element));
         // 按技能标签选（用户 2026-11-07）：先看元素，再看其他标签（如 Melee → 冲击波），最后 "*"。
         var spell = Pick(a.Spell, element, tags);

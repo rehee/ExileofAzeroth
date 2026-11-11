@@ -2,9 +2,10 @@
 -- client bridge with addon messages, prefix "EXILE", fields split by ";" ("|" is the chat escape
 -- character). See docs/bridge-protocol.md section 5.
 --   addon -> bridge: ping;<x>  replay.list  replay.play;<id>  replay.export;<id>
---                    replay.files  replay.file;<name>
+--                    replay.files  replay.file;<name>  character.refresh
 --   bridge -> addon: pong;<x>  replay.begin;<n>  replay;<id>;<label>  replay.end
 --                    file.begin;<n>  file;<name>;<label>  file.end  exported;<name>  error;<text>
+--                    character;<text>
 -- Two lists: "Recent" (the server's recordings, each can be exported to a file) and "Files" (the
 -- recording files in the replays folder, DQQ's export format, played from the file).
 -- Labels are English for now: the enUS client's fonts have no CJK glyphs.
@@ -186,6 +187,15 @@ open:SetHeight(24)
 open:SetFrameStrata("HIGH")
 open:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -200, -40)
 
+-- Beside it: fetch the character again from DQQ and put its current gear on (user 2026-11-09).
+local reload = MakeButton("ExileUIReloadChar", UIParent, 110, "Reload Gear", function()
+  Print("reloading the character from DQQ...")
+  Send("character.refresh")
+end)
+reload:SetHeight(24)
+reload:SetFrameStrata("HIGH")
+reload:SetPoint("RIGHT", open, "LEFT", -6, 0)
+
 SLASH_EXILE1 = "/exile"
 SlashCmdList["EXILE"] = function(msg)
   if msg and string.sub(msg, 1, 4) == "ping" then
@@ -226,6 +236,8 @@ events:SetScript("OnEvent", function()
       status:SetText(total .. " replay files, newest first. Click to watch.")
     end
     Refresh()
+  elseif verb == "character" then
+    Print(f[2] or "character reloaded")
   elseif verb == "exported" then
     status:SetText("Exported " .. (f[2] or "") .. " to the replays folder.")
     Print("exported " .. (f[2] or ""))

@@ -33,6 +33,8 @@
 | 方向 | type | data | 说明 |
 |------|------|------|------|
 | R→C | `hello` | `{runtime, protocol}` | 连接建立后 runtime 先发 |
+| C→R | `auth.login` | `{user, password}` | 只在演示版启动器（runtime `--player-login`，客户端 `EXILE_LOGIN=dqq`）：玩家在 WoW 登录界面输入的 DQQ 账号，runtime 在线登录。密码不记日志、不落盘 |
+| R→C | `auth.login.result` | `{ok, code, error}` | `code`：`credentials`（账号或密码不对，登录界面显示密码错误）或 `network`（连不上 DQQ 服务器） |
 | C→R | `ui.character.list` | — | 取角色列表（ICharacterService.GetAllCharacterDTOs） |
 | R→C | `ui.character.list.result` | `CharacterSummary[]` | `{id, name, level, archetype, equips{slot:{item,name}}, wowRace, wowClass, wowGender, displayId}`（D20，对应表见 `Visuals/WowLook.cs`） |
 | C→R | `combat.start` | `{characterId?, map?, mode?}` | `map` 为 DQQ `EnumMapNumber` 名，默认 `Map_1_1`；`mode`：`watch`（默认，实时推帧）/ `background`（直接算完，只发 begin/end） |
@@ -53,6 +55,8 @@
 `angle`：DQQ 只给投射物设朝向，角色和怪物恒为 0。客户端据此推出朝向：移动时面向移动方向，站立时面向 `targetX/targetY`（DQQ 当前目标的战场坐标，没有目标时为空）。
 `model` 为外观关键字：`@HumanFemale`（人类女性 NPC 外观）或生物模型路径关键字（如 `Crab`、`Wolf`），客户端在 CreatureDisplayInfo 中解析为模型编号；也可直接给数字编号。
 坐标为 DQQ 战场坐标（double），客户端按 §5.2 换算成 WoW 坐标。
+
+- 旋转技能的投射物（用户 2026-11-10）：照常飞；碰到敌人的区域事件 `action = projectileSpin`，`from` 是这个投射物，客户端让这个投射物施放事件的 `spell`（旋风斩）。`projects[]` 的 `spin` 标出这种投射物（客户端现在不用）。
 
 ### 3.2 CombatEvent（`events[]`）
 
@@ -97,6 +101,8 @@ PLAN-0006 D 起，runtime 按 `config/mapping/skills.json` 替客户端判定好
 | 桥接 → 插件 | `error;<文字>` | 出错（runtime 的 `error`、回放进行中等） |
 
 说明文字以**创建战斗的角色名**和录像自己的名字（`Name`，有才显示）开头，例如 `1a  10-30 04:11  Clear  29 ticks  XP 160  dmg 11692`。角色名取自录像 `ReplayDetail` 的 `FriendDTOs` 中 Id 等于 `CreateActorId` 的 `DisplayName`。中文名在英文版客户端字体里显示为空白。
+
+- `character.refresh`（插件 → 桥接，用户 2026-11-09）：桥接重新发 `ui.character.list`，用结果里当前角色的 `dress` 给本体换装备（自由模式立即换，回放中等回家），回 `character;<文字>`。
 
 ### 5.1 录像文件
 

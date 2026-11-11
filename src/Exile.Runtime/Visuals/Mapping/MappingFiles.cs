@@ -231,7 +231,22 @@ public static class MappingFiles
             }
             // 物品可以指定自己的 WoW 槽（如弓放进远程槽，WoW 才拿在左手），不按 DQQ 的槽。
             var at = Str(look, "slot") is { } own && Slots.ContainsKey(own) ? own : wowSlot;
-            if (ParseItem(at, look, at0, []) is { } d) items.Add(d);
+            if (ParseItem(at, look, at0, []) is { } d)
+            {
+                items.Add(d);
+                // 弓是双手武器（用户 2026-11-09）：同一把弓也放进主手，当双手武器（双手剑的挥砍动作）、
+                // 收起时斜背在背上；客户端认出主手和远程槽是同一个外观，拿出近战时放左手，射击时只显示远程槽那把。
+                if (d.Slot == 17 && d.ItemClass == 2 && d.ItemSubclass is 2 or 3 or 18)
+                    // 背的位置：物品写了 sheath 就用它，默认 staff（背后偏下，用户 2026-11-09：back 斜背偏高）。
+                    items.Add(new DressItem(15, d.DisplayId, 17, 2, 8, d.Sheath != 0 ? d.Sheath : 2));
+                // 主手魔杖（用户 2026-11-10）：主手按匕首（战斗站姿、肉搏用匕首的动作），收起挂在身侧；
+                // 同一根魔杖也放进远程槽（InventoryType 26，右手），射击时客户端只显示远程槽那根。
+                if (d.Slot == 15 && d.ItemClass == 2 && d.ItemSubclass == 19)
+                {
+                    items[^1] = d with { InventoryType = 13, ItemSubclass = 15, Sheath = d.Sheath != 0 ? d.Sheath : 3 };
+                    items.Add(new DressItem(17, d.DisplayId, 26, 2, 19, 0));
+                }
+            }
         }
         return HeroLook with { Items = items.ToArray() };
     }
@@ -313,6 +328,12 @@ public static class MappingFiles
         ["thrown"] = 25, ["rangedRight"] = 26,
     };
 
+    /// <summary>收起时挂的位置（ItemTemplate.sheath）。</summary>
+    private static readonly Dictionary<string, int> Sheaths = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["back"] = 1, ["staff"] = 2, ["side"] = 3, ["shield"] = 4,
+    };
+
     /// <summary>武器种类名 → 物品子类（大类 2）。</summary>
     private static readonly Dictionary<string, int> Weapons = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -346,19 +367,27 @@ public static class MappingFiles
     private static DressItem? ParseItem(string slotName, JsonElement value, string at, List<string> errors)
     {
         if (!Slots.TryGetValue(slotName, out var slot)) { errors.Add($"{at}：不认识的装备槽 \"{slotName}\""); return null; }
-        int? display; var type = slot.Type; string? weapon = null;
+        int? display; var type = slot.Type; string? weapon = null; var sheath = 0;
         if (value.ValueKind == JsonValueKind.Number) display = value.GetInt32();
         else
         {
             display = Int(value, "display");
             if (Str(value, "type") is { } t && !Types.TryGetValue(t, out type)) { errors.Add($"{at}.type：不认识 \"{t}\""); type = slot.Type; }
             weapon = Str(value, "weapon");
+            // 收起时挂在哪（用户 2026-11-09：盾和一些单手武器背在背上）。不写按种类：盾、双手武器在背上，其余在身侧。
+            if (value.TryGetProperty("sheath", out var sh))
+            {
+                if (sh.ValueKind == JsonValueKind.Number) sheath = sh.GetInt32();
+                else if (!Sheaths.TryGetValue(sh.GetString() ?? "", out sheath)) errors.Add($"{at}.sheath：不认识 \"{sh.GetString()}\"（back、staff、side、shield）");
+            }
         }
         if (display is not > 0) { errors.Add($"{at}：缺少外观 id（display）"); return null; }
         var subclass = 0;
         if (weapon != null && !Weapons.TryGetValue(weapon, out subclass)) errors.Add($"{at}.weapon：不认识 \"{weapon}\"");
         var isWeapon = weapon != null || slot.Slot is 15 or 17 || (slot.Slot == 16 && type is not (14 or 23));
-        return new DressItem(slot.Slot, display.Value, type, isWeapon ? 2 : 4, subclass);
+        // 盾是护甲大类的子类 6（WoW 按它把盾挂在背上、挡在左臂）。
+        if (!isWeapon && type == 14) subclass = 6;
+        return new DressItem(slot.Slot, display.Value, type, isWeapon ? 2 : 4, subclass, sheath);
     }
 
     internal static int? Int(JsonElement e, string name) =>

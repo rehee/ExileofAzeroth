@@ -2,17 +2,7 @@
 . (Join-Path $PSScriptRoot '_common.ps1')
 Start-ExileLog 'client-build'
 try {
-    # Rust 工具链：先找系统 PATH，再用免安装版（默认 C:\wow_survival\tools，可用 EXILE_RUST_HOME 覆盖）。
-    $cargo = (Get-Command cargo -ErrorAction SilentlyContinue).Source
-    if (-not $cargo) {
-        $rustHome = if ($env:EXILE_RUST_HOME) { $env:EXILE_RUST_HOME } else { 'C:\wow_survival\tools' }
-        $env:CARGO_HOME = Join-Path $rustHome 'cargo'
-        $env:RUSTUP_HOME = Join-Path $rustHome 'rustup'
-        $env:PATH = (Join-Path $env:CARGO_HOME 'bin') + ';' + $env:PATH
-        $cargo = Join-Path $env:CARGO_HOME 'bin\cargo.exe'
-        Write-ExileLog "使用免安装 Rust：$rustHome"
-    }
-    if (-not (Test-Path $cargo)) { throw '找不到 cargo，请运行 tools/setup-dev.ps1 安装 Rust。' }
+    $cargo = Use-ExileRust
     Set-Location (Join-Path $RepoRoot 'client')
     Invoke-Exile $cargo @('--version')
     $package = if ($env:EXILE_CLIENT_PACKAGE) { $env:EXILE_CLIENT_PACKAGE } else { 'benilla' }

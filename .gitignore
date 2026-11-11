@@ -24,3 +24,10 @@ tools/commit-message.txt
 benilla-config/
 tools/commit-message-client.txt
 /replays/
+
+# 本项目内的 Rust 工具链（tools/run-setup-rust.cmd 安装），不提交
+/.toolchain/
+
+# 演示版启动器的构建产物（tools/run-launcher-build.cmd）
+/build/
+/dist/

@@ -8,6 +8,11 @@
     "testCharacter": "<进入世界时自动选择的角色名，可留空>",
     "autoReplay": false
   },
+  "paths": {
+    "_comment": "本机目录。dqqRoot：DQQ 源码（私有项目）；wowData：自备 WoW 1.12.1 客户端的 Data 目录（不分发）。可被环境变量 DQQ_ROOT / WOW_DATA 覆盖。",
+    "dqqRoot": "C:\\code\\dqq\\DQQ",
+    "wowData": "C:\\wow\\Data"
+  },
   "probe": {
     "key": "",
     "lua": ""

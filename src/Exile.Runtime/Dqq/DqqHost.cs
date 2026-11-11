@@ -1,4 +1,4 @@
-using DQQ.Components.Stages.Actors.Characters;
+﻿using DQQ.Components.Stages.Actors.Characters;
 using DQQ.Repositories;
 using DQQ.Entities;
 using DQQ.Services.ActorServices;
@@ -63,7 +63,13 @@ public sealed class DqqHost : IAsyncDisposable
         var result = await http.Request<TokenDTO>(HttpMethod.Post, "Api/Token/Login",
             new LoginDTO { Username = user, Password = password, KeepLogin = true }.ToJson(), ignoreToken: true);
         if (!result.Success || result.Content == null)
-            throw new InvalidOperationException($"DQQ 在线登录失败（状态 {result.Status}）。");
+        {
+            // 4xx：账号或密码不对；其余（0、5xx）：服务器连不上或出错。
+            var status = Convert.ToInt32(result.Status);
+            if (status is >= 400 and < 500)
+                throw new InvalidOperationException($"DQQ 在线登录失败（状态 {result.Status}）。");
+            throw new HttpRequestException($"DQQ 服务器没有正常应答（状态 {result.Status}）。");
+        }
         await auth.SetAuth(result.Content, EnumPlayMode.Online);
     }
 

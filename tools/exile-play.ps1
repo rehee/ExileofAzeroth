@@ -15,7 +15,7 @@ try {
     Write-ExileLog "runtime 已启动 pid=$($runtime.Id)"
 
     $settings = Get-Content $config -Raw -Encoding UTF8 | ConvertFrom-Json
-    if (-not $env:WOW_DATA) { $env:WOW_DATA = 'C:\wow_survival\wow-data\Data' }
+    $env:WOW_DATA = Get-WowData
     $env:EXILE_RUNTIME = "ws://127.0.0.1:$port/"
     $env:WOW_USER = 'exile'
     $env:WOW_PASS = 'exile'

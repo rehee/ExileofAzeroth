@@ -104,7 +104,11 @@ public sealed class CombatRunner
                 var frame = new CombatFrame(combatId, tick,
                     (t.Players ?? []).Select(a => ToActor(a, "player"))
                         .Concat((t.Enemies ?? []).Select(a => ToActor(a, "enemy"))).ToArray(),
-                    (t.Projects ?? []).Select(a => ToActor(a, "project") with { Spell = ProjectSpell(a, lastCaster, weapons, enemies) }).ToArray(),
+                    (t.Projects ?? []).Select(a =>
+                    {
+                        var (spell, spin) = ProjectSpell(a, lastCaster, weapons, enemies);
+                        return ToActor(a, "project") with { Spell = spell, Spin = spin };
+                    }).ToArray(),
                     events.ToArray(),
                     DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
                 events.Clear();
@@ -149,18 +153,19 @@ public sealed class CombatRunner
     /// DQQ 投射物借用的 WoW 飞行法术（PLAN-0006 D）：按技能的演法——投射物技能（火球、奥术球、充能弹、刀光剑影……）
     /// 用 skills.json 的 projectile 法术（按元素）；射击、投掷的箭和标枪由施放时的法术画，这里为 0。
     /// </summary>
-    private static int ProjectSpell(TickLogActor a, Dictionary<string, string> lastCaster,
+    private static (int Spell, bool Spin) ProjectSpell(TickLogActor a, Dictionary<string, string> lastCaster,
         Dictionary<string, string?> weapons, HashSet<string> enemies)
     {
-        if (a.DisplayName == null || !SkillsByName.Value.TryGetValue(a.DisplayName, out var p)) return 0;
+        if (a.DisplayName == null || !SkillsByName.Value.TryGetValue(a.DisplayName, out var p)) return (0, false);
         var skill = p.ProfileNumber.ToString();
         var tags = p.OriginalTag.Select(t => t.ToString()).ToArray();
         var element = Visuals.Mapping.SkillLooks.ElementFor(tags, p.DamageType?.ToString(), "Physics");
         lastCaster.TryGetValue(skill, out var caster);
         var play = Visuals.Mapping.SkillLooks.Play(skill, tags, element,
             caster != null && weapons.TryGetValue(caster, out var w) ? w : null, caster != null && enemies.Contains(caster));
-        if (play.Action is "shoot" or "throw") return 0;
-        return Visuals.Mapping.SkillLooks.SpellFor("projectile", skill, element);
+        if (play.Action is "shoot" or "wandShoot" or "throw") return (0, false);
+        // 旋转技能的投射物（用户 2026-11-10）照常飞（按元素的飞行法术）；Spin 只是标出它碰到敌人时会放旋风。
+        return (Visuals.Mapping.SkillLooks.SpellFor("projectile", skill, element), play.Action is "spin" or "spinChannel");
     }
 
     private static ActorState ToActor(TickLogActor a, string kind) => new(
@@ -192,13 +197,18 @@ public sealed class CombatRunner
         // 技能区域日志：在区域中心播区域特效（火球爆炸、尸爆……，用户 2026-11-07）。
         var shape = log.SkillShape?.SkillShape.ToString();
         var scale = 1.0;
-        if (log.LogType == EnumLogType.SkillRangeAndTarget)
+        // 旋转技能的投射物（用户 2026-11-10）碰到敌人时的区域日志出自投射物、不是单位：由投射物自己施放旋风斩
+        // （projectileSpin：客户端找到这个投射物，让它施放；投射物已经没了才在那里另放）。单位自己转的旋风斩已有动作，不另播。
+        var fromProjectile = from != null && !weapons.ContainsKey(from) && !enemies.Contains(from);
+        if (log.LogType == EnumLogType.SkillRangeAndTarget && play.Action is "spin" or "spinChannel" && fromProjectile)
+            play = new Visuals.Mapping.SkillPlay("projectileSpin", Visuals.Mapping.SkillLooks.SpellFor("spin", skill?.SkillNumber?.ToString(), look), play.School);
+        else if (log.LogType == EnumLogType.SkillRangeAndTarget)
         {
             scale = Visuals.Mapping.SkillLooks.AreaScale(shape, log.SkillShape?.Range ?? 0);
             play = Visuals.Mapping.SkillLooks.Area(shape, play.Action, look, tagNames, log.SkillShape?.Range ?? 0);
         }
         // 投射物技能的发射只播施法（飞行物由 DQQ 投射物画，见 ProjectSpell）。
-        else if (play.Action is "projectile" or "channel" && log.LogType == EnumLogType.CastSkill) play = play with { Hit = false };
+        else if (play.Action is "projectile" or "channel" or "spinChannel" && log.LogType == EnumLogType.CastSkill) play = play with { Hit = false };
         // 引导技能（瓦解射线、冰霜射线、奥术洪流）也只播施法：光束由它的区域日志（射线、散射）画。
         return new CombatEvent(log.Id.ToString(), log.ActionTick ?? tick, log.LogType.ToString(),
             log.From?.Id?.ToString(), log.Target?.Id?.ToString(), skill?.SkillNumber?.ToString(),
@@ -209,8 +219,8 @@ public sealed class CombatRunner
             log.LogType == EnumLogType.DamageTaken ? Visuals.Mapping.SkillLooks.School(element) : play.School, scale, play.Hit)
         {
             // 散射的射线：DQQ 的散射日志不带中心，出发点是日志的 From（爆炸的投射物或施放者），结束处是 Target。
-            CenterX = play.Action == "ray" ? log.From?.X : log.SkillShape?.CenterX,
-            CenterY = play.Action == "ray" ? log.From?.Y : log.SkillShape?.CenterY,
+            CenterX = play.Action == "ray" ? log.From?.X : log.SkillShape?.CenterX ?? (fromProjectile ? log.From?.X : null),
+            CenterY = play.Action == "ray" ? log.From?.Y : log.SkillShape?.CenterY ?? (fromProjectile ? log.From?.Y : null),
             EndX = play.Action == "ray" ? log.Target?.X : null,
             EndY = play.Action == "ray" ? log.Target?.Y : null,
             Color = play.Color,

@@ -11,13 +11,17 @@
   },
 
   // DQQ 物品（EnumItem 名）→ WoW 装备外观（ItemDisplayInfo id）。写法同 mobs.json 的 items：
-  // 数字 = 只写外观；对象 = { display, type, weapon }。没写的物品不显示（日志记一次缺失）。
+  // 数字 = 只写外观；对象 = { display, type, weapon, sheath }。没写的物品不显示（日志记一次缺失）。
+  // sheath：收起时挂在哪（用户 2026-11-09）。不写按种类：盾背在背上（shield）、长杖竖背（staff）、其他双手武器斜背（back）、
+  // 其余在身侧（side）。要背在背上的单手武器写 "sheath": "back"。
   "items": {
     // ---- 护甲：板甲 = 勇气套（战士 T0），皮甲 = 暗影套（盗贼 T0），鳞甲 = 野兽追猎者套（猎人 T0）；外观 id 已对 Wowhead 核对 ----
     "PlateArmor": 29958,   "PlateHelmet": 31284,   "PlateGlove": 29962,   "PlateBoot": 29960,
-    "LeatherArmor": 15607, "LeatherHelmet": 16056, "LeatherGlove": 19909, "LeatherBoot": 28162,
+    "LeatherArmor": { "display": 31797, "type": "robe" }, "LeatherHelmet": 16056, "LeatherGlove": 19909, "LeatherBoot": 28162,
     "ScaleArmour": 31402,  "ScaleHelmet": 31410,   "ScaleGlove": 31406,   "ScaleBoot": 31408,
     "LeatherBelt": 14853,
+    // 皮甲衣服用长袍式（用户 2026-11-09）：塞纳里奥长袍（德鲁伊 T1，皮甲长袍，下摆贴图 Leather_RaidDruid_A_01_Robe）；
+    // 另一件皮甲长袍是怒风长袍 30551（T2）。原来的暗影外套是 15607。"type": "robe" 才会画下摆。
 
     // ---- 单手剑 ----
     "CopperSword":           { "display": 1542, "weapon": "sword" },  // Sword_1H_Short_A_02（锈铜色短剑）

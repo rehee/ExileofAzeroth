@@ -1,4 +1,4 @@
-# 开发与运行流程（Windows）
+﻿# 开发与运行流程（Windows）
 
 | 字段 | 内容 |
 |------|------|
@@ -25,12 +25,23 @@
 | 依赖 | 说明 |
 |------|------|
 | .NET SDK 8.0.416 | 仓库根 `global.json` 固定版本（与 DQQ 一致；用 SDK 10 嵌套编译 DQQ 会失败） |
-| Rust 1.98.1 MSVC | 系统 PATH 里没有时，`client-build` 自动使用免安装版 `C:\wow_survival\tools\{cargo,rustup}`（可用 `EXILE_RUST_HOME` 改） |
+| Rust（版本由 `client/rust-toolchain.toml` 决定） | 装在本项目内 `.toolchain/rust/`（已忽略）：首次运行 `tools/run-setup-rust.cmd`。构建脚本只用这一份，不读系统 PATH 或其他项目的 cargo |
 | VS 2022 C++ 生成工具 | Rust MSVC 链接需要 |
-| WoW 1.12.1 enUS 数据 | 默认 `C:\wow_survival\wow-data\Data`（可用 `WOW_DATA` 改） |
-| DQQ 源码 | `C:\code\dqq\DQQ`（只读取，不修改；可用 `DQQ_ROOT` 改） |
+| WoW 1.12.1 enUS 数据 | 自备（受版权保护，不分发）。目录写在 `config/dev.local.json` 的 `paths.wowData` |
+| DQQ 源码 | 私有项目，只读取不修改。目录写在 `config/dev.local.json` 的 `paths.dqqRoot` |
 
-`tools/setup-dev.ps1` 可用 winget 安装上述工具，目前机器上已具备，未运行过。
+本机目录集中在 `config/dev.local.json`（模板见 `dev.example.json`）：
+
+```json
+"paths": {
+  "dqqRoot": "C:\\code\\dqq\\DQQ",
+  "wowData": "C:\\wow\\Data"
+}
+```
+
+环境变量 `DQQ_ROOT` / `WOW_DATA` 可临时覆盖。没有配置或目录不存在时，脚本直接报错说明该填哪一项，不再回退到写死的路径。
+
+`tools/setup-dev.ps1` 可用 winget 安装 .NET SDK 与 VS 生成工具；Rust 由 `tools/run-setup-rust.cmd` 安装到项目内（rustup 下载自 static.rust-lang.org）。
 
 ## 3. 脚本
 
@@ -38,6 +49,8 @@
 
 | 脚本 | 作用 | 备注 |
 |------|------|------|
+| `launcher-build` | 生成演示版启动器 `dist/EoALauncher.exe`（单个 exe，见 §3.1） | 包含客户端、runtime（自带 .NET）、对应表、插件；不含暴雪文件。中间文件在 `build/launcher/` |
+| `setup-rust` | 把 rustup 与客户端要求的 Rust 装到 `.toolchain/rust/` | 只需一次；`client-build` / `wow-dbc` 找不到 cargo 时会提示先运行它 |
 | `update-dqq` | 编译 DQQ 三个项目并收集全部依赖到 `source/dqq/` | 跳过 DQQ 本地化同步，避免改写 DQQ 目录 |
 | `runtime-selftest` | 编译 runtime 并自检：在线登录、角色列表、后台/实时战斗、WebSocket 回环实测 | 报告 `tools/logs/selftest.json` |
 | `client-build` | 编译客户端（profile `play`） | 首次约 14 分钟，增量 1–2 分钟；运行中的游戏会锁住 exe，先退出游戏 |
@@ -51,6 +64,18 @@
 | `init-repo` / `setup-dev` | 一次性脚本 | |
 
 AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无网络、无 .NET、非 Windows），只能读写文件；编译和运行由 AI 在资源管理器里**双击 `tools/run-*.cmd`**（资源管理器只授权左键），再读 `tools/logs/`。新加的文件在资源管理器里不会自动出现，回到上一级再进入即可刷新。
+
+
+### 3.1 演示版启动器 EoALauncher（用户 2026-11-08）
+
+`tools/run-launcher-build.cmd` 生成 `dist/EoALauncher.exe`，玩家把它放进 WoW 1.12.1 目录（和 `WoW.exe`、`Data` 在一起）代替 `WoW.exe` 运行：
+
+1. 首次运行（或包变了）把接在 exe 末尾的包解压到 `WoW目录/Exile/`（`client/`、`runtime/`、`benilla-config/AddOns/`）；玩家设置 `benilla-config/`、录像 `replays/` 保留。
+2. 后台启动 runtime：在线模式，服务器 `https://pogapi2.idlepog.com/`，`--player-login`（不读开发配置）。
+3. 启动客户端（`EXILE_LOGIN=dqq`）：停在 WoW 登录界面，输入 DQQ 用户名、密码 → 桥接 `auth.login` → runtime 在线登录 → 角色列表 → 进入游戏，聊天框 `.replay` 等读取在线录像。账号名用登录界面自带的“记住账号名”勾选保存，密码不保存。
+4. 客户端退出后关掉 runtime。日志在 `WoW目录/Exile/logs/`（launcher、runtime、client）。
+
+这是独立的演示命令，正式的启动器（自动更新、CI）见 PLAN-0008。开发时仍用 `run-exile-play`（测试账号自动登录）。
 
 ## 4. Exile 模式运行（`exile-play`）
 
@@ -98,6 +123,11 @@ AI 的执行方式：AI 的命令行是用户电脑上的 Linux 虚拟机（无�
 - 首次运行会弹出暴雪 EULA 和 TOS（用户 2026-11-06 授权 AI 接受），接受后写入 `readEULA`、`readTOS`。
 - 预设 `realmName = "Exile of Azeroth"`，否则会出现领域选择向导。
 - 在全新机器上需要重复以上两步（以后由启动器处理）。
+- 镜头跟随（用户 2026-11-09）：Exile 模式下 `cameraSmoothStyle` 默认 0（Never），自由模式走动时镜头不会自动转回角色背后。只在配置里还没有这一项时设置，之后玩家在界面设置里改成别的会保留。
+- 模式切换时镜头重置（用户 2026-11-09）：自由模式 ↔ 战斗回放都是一次传送，Exile 模式下每次传送后建一个新镜头（同 `/reload`）：放到人物背后（到达时的朝向）、默认俯角（约 29°）和默认距离（15 码），停掉所有过渡。
+- 拖视角时偶尔变成从头顶往下看（用户 2026-11-09）：日志显示那一帧的鼠标移动量是 (32972, 24150) 这样的屏幕绝对坐标（Windows 原始输入的绝对坐标报告），被当成移动量，镜头一帧转了约 70 弧度。客户端现在丢掉单帧超过 4000 的鼠标移动量（日志记 `camera: dropped a mouse delta`）；俯角单帧跳变超过 0.3 弧度也会记日志，方便以后排查。
+- 表情动作（用户 2026-11-09）：自由模式可以用 `/wave`、`/dance` 等。没有服务器回应，由桥接代答（同 vmangos）：聊天行与声音（`SMSG_TEXT_EMOTE`），一次性动作（挥手）发 `SMSG_EMOTE`，循环动作（跳舞）设 `UNIT_NPC_EMOTESTATE`、走动就停；坐下等姿势本来就由客户端自己处理。回放中不响应（身体属于回放）。
+- 登出（用户 2026-11-10）：游戏菜单（Esc）的 Logout 立即回到角色列表（没有 20 秒等待），角色列表重新向 DQQ 取（装备等是最新的）。回放中登出会先停掉回放。Exit Game 仍是退出游戏。
 
 ## 6. 已知问题
 

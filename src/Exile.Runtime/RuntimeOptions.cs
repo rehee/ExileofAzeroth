@@ -19,6 +19,11 @@ public sealed class RuntimeOptions
     /// <summary>录像文件目录（导出、导入）；--replays 指定，默认 runtime 旁的 replays/。</summary>
     public string ReplaysDir { get; set; } = Path.Combine(AppContext.BaseDirectory, "replays");
     public string ApiBaseUrl { get; set; } = "https://pogapi2.idlepog.com/";
+    /// <summary>
+    /// --player-login：玩家在 WoW 登录界面输入 DQQ 账号（EoALauncher 演示版）。不读配置文件里的测试账号，
+    /// 等客户端发 auth.login 再在线登录。
+    /// </summary>
+    public bool PlayerLogin { get; set; }
     public string? TestUser { get; set; }
     public string? TestPassword { get; set; }
 
@@ -37,8 +42,11 @@ public sealed class RuntimeOptions
                 case "--mapping": o.MappingDir = args[++i]; break;
                 case "--config": o.ConfigPath = args[++i]; break;
                 case "--replays": o.ReplaysDir = args[++i]; break;
+                case "--player-login": o.PlayerLogin = true; break;
+                case "--api": o.ApiBaseUrl = args[++i]; break;
             }
         }
+        if (o.PlayerLogin) return o; // 演示版：不读开发配置（测试账号、接口地址）
         o.ConfigPath ??= FindConfig();
         if (o.ConfigPath != null && File.Exists(o.ConfigPath))
         {
