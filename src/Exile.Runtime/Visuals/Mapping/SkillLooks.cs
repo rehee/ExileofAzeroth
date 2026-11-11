@@ -27,7 +27,7 @@ public static class SkillLooks
     private static Dictionary<string, (string? Action, Dictionary<string, int>? Spell)> skills = new();
     private static HashSet<string> noHit = [];
     private static Dictionary<string, int> durations = new();
-    private sealed record AuraLook(int Hero, int Enemy, int RingSpell, double RingRadius, int RingCount, string? RingDistance);
+    private sealed record AuraLook(int Hero, int Enemy, int RingSpell, double RingRadius, int RingCount, string? RingDistance, int RingArea, double RingNative);
     private static readonly Dictionary<string, double> distances = new();
     private static Dictionary<string, AuraLook> auras = new();
 
@@ -62,10 +62,10 @@ public static class SkillLooks
             var spell = enemy ? a.Enemy : a.Hero;
             if (spell > 0) set.Add(spell);
             // 范围圈只给效果的主人（英雄一侧）：敌人身上的同名效果是被烧。
-            if (!enemy && a.RingSpell > 0 && ring == null)
+            if (!enemy && (a.RingSpell > 0 || a.RingArea > 0) && ring == null)
             {
                 var radius = a.RingDistance != null ? DistanceOf(a.RingDistance) : a.RingRadius;
-                if (radius > 0) ring = new Protocol.AuraRing(a.RingSpell, radius, a.RingCount);
+                if (radius > 0) ring = new Protocol.AuraRing(a.RingSpell, radius, a.RingCount, a.RingArea, a.RingNative);
             }
         }
         return (set.ToArray(), ring);
@@ -137,13 +137,15 @@ public static class SkillLooks
             {
                 var at = $"{file} auras.{a.Name}";
                 if (!Enum.TryParse<DQQ.Enums.EnumDurationNumber>(a.Name, out _)) errors.Add($"{at}：DQQ 没有这个持续效果（EnumDurationNumber），拼写？");
-                if (a.Value.ValueKind == JsonValueKind.Number && a.Value.TryGetInt32(out var both)) { aus[a.Name] = new AuraLook(both, both, 0, 0, 0, null); continue; }
+                if (a.Value.ValueKind == JsonValueKind.Number && a.Value.TryGetInt32(out var both)) { aus[a.Name] = new AuraLook(both, both, 0, 0, 0, null, 0, 0); continue; }
                 if (a.Value.ValueKind != JsonValueKind.Object) { errors.Add($"{at}：要写 WoW 法术 id，或 {{ hero, enemy, ring }}"); continue; }
                 var any = MappingFiles.Int(a.Value, "spell") ?? 0;
-                int ringSpell = 0, count = 0; double radius = 0; string? distance = null;
+                int ringSpell = 0, count = 0, area = 0; double radius = 0, native = 0; string? distance = null;
                 if (a.Value.TryGetProperty("ring", out var rg) && rg.ValueKind == JsonValueKind.Object)
                 {
                     ringSpell = MappingFiles.Int(rg, "spell") ?? 0;
+                    area = MappingFiles.Int(rg, "area") ?? 0;
+                    native = rg.TryGetProperty("native", out var nv) && nv.ValueKind == JsonValueKind.Number ? nv.GetDouble() : 8;
                     count = MappingFiles.Int(rg, "count") ?? 12;
                     if (rg.TryGetProperty("distance", out var dv))
                     {
@@ -155,9 +157,9 @@ public static class SkillLooks
                             if (!Enum.TryParse<DQQ.Enums.EnumDistance>(distance, out _)) { errors.Add($"{at}.ring.distance：DQQ 没有这个距离档 \"{distance}\"（EnumDistance）"); distance = null; }
                         }
                     }
-                    if (ringSpell <= 0 || (radius <= 0 && distance == null)) errors.Add($"{at}.ring：要写 spell 和 distance（DQQ 的 EnumDistance 名，或数字）");
+                    if ((ringSpell <= 0 && area <= 0) || (radius <= 0 && distance == null)) errors.Add($"{at}.ring：要写 area（或 spell）和 distance（DQQ 的 EnumDistance 名，或数字）");
                 }
-                aus[a.Name] = new AuraLook(MappingFiles.Int(a.Value, "hero") ?? any, MappingFiles.Int(a.Value, "enemy") ?? any, ringSpell, radius, count, distance);
+                aus[a.Name] = new AuraLook(MappingFiles.Int(a.Value, "hero") ?? any, MappingFiles.Int(a.Value, "enemy") ?? any, ringSpell, radius, count, distance, area, native);
             }
         auras = aus;
 

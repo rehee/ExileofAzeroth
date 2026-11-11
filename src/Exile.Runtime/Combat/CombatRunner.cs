@@ -53,6 +53,7 @@ public sealed class CombatRunner
         // 技能 → 最近一次施放者（DQQ 投射物不带施放者：用它判定该技能的演法，例如弓射出的箭不另画）。
         var lastCaster = new Dictionary<string, string>();
         var durationsSeen = new HashSet<string>();
+        var aurasOpened = new HashSet<string>();
         // 英雄的外观按种子里的角色 DTO（录像当时的装备，config/mapping/equipment.json 对应）。
         var heroes = (request.Creators ?? []).Where(c => c.Id != null).ToDictionary(
             c => c.Id!.Value.ToString(),
@@ -81,7 +82,11 @@ public sealed class CombatRunner
                 if (log.LogType is not (EnumLogType.CastSkill or EnumLogType.TriggerSpell
                     or EnumLogType.SkillRangeAndTarget or EnumLogType.DamageTaken or EnumLogType.HealingTaken
                     or EnumLogType.Killed or EnumLogType.ActorIsDown or EnumLogType.ActiveAura)) continue;
-                events.Add(ToEvent(log, p.Tick, weapons, enemies));
+                var ev = ToEvent(log, p.Tick, weapons, enemies);
+                // 光环（用户 2026-11-11）：同一个单位的同一个光环只在第一次激活时做施法动作（举手），之后被动激活不做任何动作。
+                if (log.LogType == EnumLogType.ActiveAura && !aurasOpened.Add($"{log.From?.Id}:{log.Skill?.SkillNumber}"))
+                    ev = ev with { Action = "none", Spell = 0 };
+                events.Add(ev);
                 if (log.LogType == EnumLogType.CastSkill && log.Skill?.SkillNumber is { } cs && log.From?.Id is { } cf)
                     lastCaster[cs.ToString()] = cf.ToString();
             }

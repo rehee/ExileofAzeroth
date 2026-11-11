@@ -54,7 +54,8 @@ public sealed record ActorState(string Id, string Kind, double X, double Y, doub
 // 光环的常驻特效（护盾、燃烧、冰冻……）就一直挂着，没了就消失。Ring：以它为中心的一圈特效，显示范围（正义之火）。
 
 /// <summary>范围圈：沿半径 Radius（DQQ 距离）一圈放 Count 个挂着光环 Spell 的隐形单位，跟着中心走。</summary>
-public sealed record AuraRing(int Spell, double Radius, int Count);
+/// <remarks>Area > 0：改画地面上的一个圆（借用地面法术 Area 的区域模型，按 Radius 从它原本的半径 Native 码缩放），不放那圈单位。</remarks>
+public sealed record AuraRing(int Spell, double Radius, int Count, int Area = 0, double Native = 0);
 // Spell（只对 kind = project）：这个 DQQ 投射物借用的 WoW 飞行法术（0 = 不画，例如弓的箭由施放时的自动射击画），PLAN-0006 D。
 // Spin（只对 kind = project，用户 2026-11-10）：带 Spin 标签的技能的投射物。照常飞；碰到敌人时由它自己施放旋风斩
 // （事件 action = projectileSpin）。

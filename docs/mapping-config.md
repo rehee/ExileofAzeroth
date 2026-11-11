@@ -228,7 +228,7 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 | ShockLightning | 电弧 | 8345 Control Machine |
 | Lightning / HealBeam | 闪电 / 金绿（一次性弧线，`"channel": false`） | 421 闪电链 / 1064 治疗链 |
 
-**`auras`**（2026-11-11）：持续效果 → 常驻的 WoW 光环。数字 = 谁身上都用；对象 = `{ "hero": id, "enemy": id, "ring": { "spell": id, "distance": "Middle" 或数字, "count": 14 } }`。借用的法术要有“状态”特效包才看得见（`SpellVisual` 的第 4 个阶段）。`ring` 只给英雄一侧的主人。runtime 在 `actors[].auras` / `actors[].ring` 里发给客户端。
+**`auras`**（2026-11-11）：持续效果 → 常驻的 WoW 光环。数字 = 谁身上都用；对象 = `{ "hero": id, "enemy": id, "ring": { "spell": id, "distance": "Middle" 或数字, "count": 14 } }`。借用的法术要有“状态”特效包才看得见（`SpellVisual` 的第 4 个阶段）。`ring` 只给英雄一侧的主人；`ring` 写 `"area": 地面法术 id, "native": 它原本的半径（码）` 时画成地面上的一个圆（按范围缩放），写 `"spell"` + `"count"` 时是一圈挂着光环的点。runtime 在 `actors[].auras` / `actors[].ring` 里发给客户端。
 
 **连锁形状（`Chain`）**（2026-11-11）：DQQ 的连锁每一跳记一条区域日志（出发点是上一个目标），`rays.Chain` 给每一跳画一道施放型光束，于是光束从施放者到第一个目标、再逐个跳过去。只按元素配置、不写 `"*"`，物理的连锁（普通攻击带连锁）不画线。
 
