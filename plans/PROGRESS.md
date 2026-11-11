@@ -24,6 +24,12 @@ PLAN-0006（对应表）→ PLAN-0004（战斗表现）；PLAN-0005（界面）�
 
 每个计划文件里有现状、设计、分阶段任务、验收标准和待确认问题（2026-11-07 细化）。
 
+## 下一阶段待办（用户 2026-11-11：留到下一阶段）
+- 审 `config/mapping/skills.json` 的 `auras`：Claude 先挑的另外 13 个光环特效（PLAN-0006 D）。
+- 游戏里验证冲刺拖尾（ChoukyuuHaouDenEidan、BrutalCharge，光环 23451）。
+- 实际运行一次演示启动器 EoALauncher（`tools/run-launcher-build.cmd`，PLAN-0008）。
+- 时装 cosmetics（只预留了格式与收费点设计，见 docs/char-config.md）：以后另开计划。
+
 ## 当前阻塞
 - PLAN-0009 等待 DQQ 侧的离线 service（SQLite）；PLAN-0010 等待 DQQ 侧的标准指令支持。
 
