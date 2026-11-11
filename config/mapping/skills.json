@@ -101,5 +101,28 @@
     "BattleShout":          6673,  // 战吼：DQQ 不写施放日志，以持续效果出现为施放
     "DamageInvincibility":  642,   // 超级霸王电影弹蓄力时的无敌：圣盾术
     "ChoukyuuHaouDenEidan": 100    // 超级霸王电影弹的冲刺：冲锋
+  },
+
+  // 持续效果在身上期间常驻的 WoW 光环特效（Claude 2026-11-11 先挑，等用户审）。借用的法术要有“状态”特效包才看得见。
+  // 数字 = 谁身上都用；对象 = { "hero": 英雄一侧, "enemy": 敌人, "ring": { "spell", "distance", "count" } }。
+  // ring：以效果的主人为中心、沿 distance（DQQ 的 EnumDistance 名，或 DQQ 距离的数字）一圈放 count 个挂着 spell 的隐形单位，显示范围。
+  // 没写的持续效果不显示常驻特效（现在没写的：BattleShout、Bleeding、Channel、ContraDebuff、HolyFireAura、MortalStrike、
+  // PainResistance、PunishBuff、ShoryuDebuff、SunderArmorDebuff —— 多数在 WoW 里对应的法术没有常驻特效）。
+  "auras": {
+    "PowerWordShield":      17,     // 真言术：盾的护盾罩
+    "Renew":                139,    // 恢复的绿色光点
+    "DamageInvincibility":  642,    // 圣盾术的金色罩子
+    "ContraProtection":     1022,   // 保护祝福
+    "ArcaneSurge":          12042,  // 奥术强化：胸口的奥术光
+    "Freeze":               122,    // 冰霜新星：脚下结冰
+    "GlacialHammerDuration": 122,
+    "HolyFreeze":           { "enemy": 122 },
+    "HolyFire":             { "enemy": 12654 },  // 点燃：身上着火
+    "HolyShock":            { "enemy": 324 },    // 闪电之盾：身边的电球
+    "SelfDestruct":         23537,  // 激怒：发红
+    "BrutalCharge":         23451,  // 速度：身后的拖尾
+    "ChoukyuuHaouDenEidan": 23451,  // 冲刺期间的拖尾
+    // 正义之火（用户 2026-11-11：像 PoE 那样显示范围）：被烧的敌人身上着火；主人周围一圈火（半径 = DQQ 判定用的 Middle 距离）。
+    "RighteousFire":        { "enemy": 12654, "ring": { "spell": 12654, "distance": "Middle", "count": 14 } }
   }
 }

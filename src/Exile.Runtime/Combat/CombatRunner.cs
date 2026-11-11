@@ -102,8 +102,8 @@ public sealed class CombatRunner
                             "Physics", 0, false, false, true, name, "duration", Visuals.Mapping.SkillLooks.DurationSpell(name), 0));
                     }
                 var frame = new CombatFrame(combatId, tick,
-                    (t.Players ?? []).Select(a => ToActor(a, "player"))
-                        .Concat((t.Enemies ?? []).Select(a => ToActor(a, "enemy"))).ToArray(),
+                    (t.Players ?? []).Select(a => WithAuras(ToActor(a, "player"), a, false))
+                        .Concat((t.Enemies ?? []).Select(a => WithAuras(ToActor(a, "enemy"), a, true))).ToArray(),
                     (t.Projects ?? []).Select(a =>
                     {
                         var (spell, spin) = ProjectSpell(a, lastCaster, weapons, enemies);
@@ -166,6 +166,14 @@ public sealed class CombatRunner
         if (play.Action is "shoot" or "wandShoot" or "throw") return (0, false);
         // 旋转技能的投射物（用户 2026-11-10）照常飞（按元素的飞行法术）；Spin 只是标出它碰到敌人时会放旋风。
         return (Visuals.Mapping.SkillLooks.SpellFor("projectile", skill, element), play.Action is "spin" or "spinChannel");
+    }
+
+    /// <summary>单位身上的持续效果 → 常驻的 WoW 光环与范围圈（skills.json auras）。</summary>
+    private static ActorState WithAuras(ActorState s, TickLogActor a, bool enemy)
+    {
+        var names = (a.Durations ?? []).Select(d => d.DurationNumber?.ToString()).Where(n => n != null).Select(n => n!);
+        var (auras, ring) = Visuals.Mapping.SkillLooks.AurasFor(names, enemy);
+        return auras.Length == 0 && ring == null ? s : s with { Auras = auras, Ring = ring };
     }
 
     private static ActorState ToActor(TickLogActor a, string kind) => new(

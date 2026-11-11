@@ -27,6 +27,49 @@ public static class SkillLooks
     private static Dictionary<string, (string? Action, Dictionary<string, int>? Spell)> skills = new();
     private static HashSet<string> noHit = [];
     private static Dictionary<string, int> durations = new();
+    private sealed record AuraLook(int Hero, int Enemy, int RingSpell, double RingRadius, int RingCount, string? RingDistance);
+    private static readonly Dictionary<string, double> distances = new();
+    private static Dictionary<string, AuraLook> auras = new();
+
+    /// <summary>DQQ 的距离档（EnumDistance，如 Middle）→ DQQ 距离。</summary>
+    private static double DistanceOf(string name)
+    {
+        lock (distances)
+        {
+            if (distances.TryGetValue(name, out var known)) return known;
+            var d = 0.0;
+            try
+            {
+                if (Enum.TryParse<DQQ.Enums.EnumDistance>(name, out var e)
+                    && DQQ.Pools.DQQPool.TryGet<DQQ.Profiles.Distances.DistanceProfile, DQQ.Enums.EnumDistance>(e) is { } p)
+                    d = p.BasicDistance;
+            }
+            catch (Exception ex) { Console.WriteLine($"[mapping] 读 DQQ 距离 {name} 出错：{ex.Message}"); }
+            if (d <= 0) Console.WriteLine($"[mapping] DQQ 距离 {name} 取不到，范围圈不显示");
+            else Console.WriteLine($"[mapping] DQQ 距离 {name} = {d}");
+            return distances[name] = d;
+        }
+    }
+
+    /// <summary>一个单位身上的持续效果 → 常驻光环（去重、排序，客户端按它写光环栏）与范围圈（最多一个）。</summary>
+    public static (int[] Auras, Protocol.AuraRing? Ring) AurasFor(IEnumerable<string> names, bool enemy)
+    {
+        var set = new SortedSet<int>();
+        Protocol.AuraRing? ring = null;
+        foreach (var n in names)
+        {
+            if (!auras.TryGetValue(n, out var a)) continue;
+            var spell = enemy ? a.Enemy : a.Hero;
+            if (spell > 0) set.Add(spell);
+            // 范围圈只给效果的主人（英雄一侧）：敌人身上的同名效果是被烧。
+            if (!enemy && a.RingSpell > 0 && ring == null)
+            {
+                var radius = a.RingDistance != null ? DistanceOf(a.RingDistance) : a.RingRadius;
+                if (radius > 0) ring = new Protocol.AuraRing(a.RingSpell, radius, a.RingCount);
+            }
+        }
+        return (set.ToArray(), ring);
+    }
     /// <summary>形状 → 按大小分档（upTo：DQQ 半径不超过它用这一档；没写 = 其余）。</summary>
     private static Dictionary<string, List<(double? UpTo, Dictionary<string, int> Spell, double Radius)>> areas = new();
     /// <summary>画成射线的形状（散射）：形状 → 法术（按元素、技能标签）。</summary>
@@ -37,7 +80,7 @@ public static class SkillLooks
     private static HashSet<(string, string)> rayCasts = [];
 
     /// <summary>读取结果的一句话（runtime 日志）。</summary>
-    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、射线 {rays.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}";
+    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、射线 {rays.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}、光环 {auras.Count}";
 
     public static IReadOnlyDictionary<string, (int School, string Note)> Elements => elements;
     public static IReadOnlyDictionary<string, (string? Action, Dictionary<string, int>? Spell)> Skills => skills;
@@ -86,6 +129,37 @@ public static class SkillLooks
                 sks[s.Name] = (action, spell);
                 if (s.Value.TryGetProperty("hit", out var hv) && hv.ValueKind == JsonValueKind.False) nh.Add(s.Name);
             }
+
+        // auras：持续效果在身上时常驻的 WoW 光环。数字 = 谁身上都用；对象 = { hero, enemy, ring: { spell, distance, count } }。
+        var aus = new Dictionary<string, AuraLook>();
+        if (root.TryGetProperty("auras", out var axs) && axs.ValueKind == JsonValueKind.Object)
+            foreach (var a in axs.EnumerateObject())
+            {
+                var at = $"{file} auras.{a.Name}";
+                if (!Enum.TryParse<DQQ.Enums.EnumDurationNumber>(a.Name, out _)) errors.Add($"{at}：DQQ 没有这个持续效果（EnumDurationNumber），拼写？");
+                if (a.Value.ValueKind == JsonValueKind.Number && a.Value.TryGetInt32(out var both)) { aus[a.Name] = new AuraLook(both, both, 0, 0, 0, null); continue; }
+                if (a.Value.ValueKind != JsonValueKind.Object) { errors.Add($"{at}：要写 WoW 法术 id，或 {{ hero, enemy, ring }}"); continue; }
+                var any = MappingFiles.Int(a.Value, "spell") ?? 0;
+                int ringSpell = 0, count = 0; double radius = 0; string? distance = null;
+                if (a.Value.TryGetProperty("ring", out var rg) && rg.ValueKind == JsonValueKind.Object)
+                {
+                    ringSpell = MappingFiles.Int(rg, "spell") ?? 0;
+                    count = MappingFiles.Int(rg, "count") ?? 12;
+                    if (rg.TryGetProperty("distance", out var dv))
+                    {
+                        if (dv.ValueKind == JsonValueKind.Number) radius = dv.GetDouble();
+                        else
+                        {
+                            // 名字（EnumDistance）：用的时候再向 DQQ 取（读配置时 DQQ 的对象池还没建好）。
+                            distance = dv.GetString();
+                            if (!Enum.TryParse<DQQ.Enums.EnumDistance>(distance, out _)) { errors.Add($"{at}.ring.distance：DQQ 没有这个距离档 \"{distance}\"（EnumDistance）"); distance = null; }
+                        }
+                    }
+                    if (ringSpell <= 0 || (radius <= 0 && distance == null)) errors.Add($"{at}.ring：要写 spell 和 distance（DQQ 的 EnumDistance 名，或数字）");
+                }
+                aus[a.Name] = new AuraLook(MappingFiles.Int(a.Value, "hero") ?? any, MappingFiles.Int(a.Value, "enemy") ?? any, ringSpell, radius, count, distance);
+            }
+        auras = aus;
 
         var durs = new Dictionary<string, int>();
         if (root.TryGetProperty("durations", out var ds) && ds.ValueKind == JsonValueKind.Object)

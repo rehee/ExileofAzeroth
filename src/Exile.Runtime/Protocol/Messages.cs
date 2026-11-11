@@ -48,7 +48,13 @@ public sealed record CombatBegin(string CombatId, string Map, string Mode, int T
 public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors, ActorState[] Projects, CombatEvent[] Events, long SentAtMs);
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
-    double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null, int Spell = 0, bool Spin = false);
+    double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null, int Spell = 0, bool Spin = false,
+    int[]? Auras = null, AuraRing? Ring = null);
+// Auras（PLAN-0006 D，2026-11-11）：这个单位身上的持续效果借用的 WoW 光环法术（skills.json 的 auras）：客户端写进它的光环栏，
+// 光环的常驻特效（护盾、燃烧、冰冻……）就一直挂着，没了就消失。Ring：以它为中心的一圈特效，显示范围（正义之火）。
+
+/// <summary>范围圈：沿半径 Radius（DQQ 距离）一圈放 Count 个挂着光环 Spell 的隐形单位，跟着中心走。</summary>
+public sealed record AuraRing(int Spell, double Radius, int Count);
 // Spell（只对 kind = project）：这个 DQQ 投射物借用的 WoW 飞行法术（0 = 不画，例如弓的箭由施放时的自动射击画），PLAN-0006 D。
 // Spin（只对 kind = project，用户 2026-11-10）：带 Spin 标签的技能的投射物。照常飞；碰到敌人时由它自己施放旋风斩
 // （事件 action = projectileSpin）。

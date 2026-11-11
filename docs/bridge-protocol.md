@@ -58,6 +58,8 @@
 
 - 旋转技能的投射物（用户 2026-11-10）：照常飞；碰到敌人的区域事件 `action = projectileSpin`，`from` 是这个投射物，客户端让这个投射物施放事件的 `spell`（旋风斩）。`projects[]` 的 `spin` 标出这种投射物（客户端现在不用）。
 
+- `actors[].auras`（2026-11-11）：这个单位此刻带着的常驻光环法术（去重、排序）；客户端写进光环栏（前 8 格），变了才发。`actors[].ring = {spell, radius, count}`：以它为中心的范围圈（`radius` 是 DQQ 距离）。
+
 ### 3.2 CombatEvent（`events[]`）
 
 `{id, tick, kind, from?, target?, skill?, tags[], phase?, shape?, range, centerX?, centerY?, element, amount, critical, killed, success, duration?, action?, spell, school}`
