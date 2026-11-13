@@ -174,7 +174,11 @@ public static class MappingFiles
                             if (x.ValueKind == JsonValueKind.Number && x.TryGetInt32(out var id)) auras.Add(id); else errors.Add($"{where}.aura：要写 WoW 法术 id");
                     else errors.Add($"{where}.aura：要写 WoW 法术 id，或几个 id 的数组");
                 }
-                rarities[r.Name] = new RarityLook(color.ToUpperInvariant(), Int(r.Value, "rank") ?? 0, auras.Where(a => a > 0).ToArray(), Str(r.Value, "note") ?? "");
+                // 外发光（PLAN-0004 C）：RRGGBB，不写 = 不发光。
+                var glow = Str(r.Value, "glow");
+                if (glow != null && (glow.Length != 6 || !int.TryParse(glow, System.Globalization.NumberStyles.HexNumber, null, out _)))
+                { errors.Add($"{where}.glow：要写 RRGGBB（如 \"4D80FF\"）"); glow = null; }
+                rarities[r.Name] = new RarityLook(color.ToUpperInvariant(), Int(r.Value, "rank") ?? 0, auras.Where(a => a > 0).ToArray(), Str(r.Value, "note") ?? "", glow?.ToUpperInvariant());
             }
         Mobs = mobs;
         MobFallback = fallback;

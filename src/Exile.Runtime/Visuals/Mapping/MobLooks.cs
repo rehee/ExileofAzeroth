@@ -14,7 +14,8 @@ public sealed record MobLook(int DisplayId, string? Model, string Note, Dress? D
 /// <param name="Color">名字颜色（RRGGBB，仿 PoE：普通白、魔法蓝、精英黄、冠军/守卫橙）。</param>
 /// <param name="Rank">头像边框：WoW 生物等级（0 普通，1 精英金龙，2 稀有精英，3 首领，4 稀有银龙）。</param>
 /// <param name="Auras">身上常驻的光环法术（并进 ActorState 的 auras，客户端照常写进光环栏）。</param>
-public sealed record RarityLook(string Color, int Rank, int[] Auras, string Note);
+/// <param name="Glow">整只怪的外发光颜色（RRGGBB，客户端着色器的边缘光，PLAN-0004 C）；null = 不发光。</param>
+public sealed record RarityLook(string Color, int Rank, int[] Auras, string Note, string? Glow = null);
 
 /// <summary>
 /// DQQ 怪物（<c>EnumMob</c>，按枚举名）→ WoW 外观（PLAN-0006 B）。表在 <c>config/mapping/mobs.json</c>

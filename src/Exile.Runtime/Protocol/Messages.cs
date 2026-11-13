@@ -49,7 +49,8 @@ public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors,
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
     double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null, int Spell = 0, bool Spin = false,
-    int[]? Auras = null, AuraRing? Ring = null, string? Rarity = null, string? NameColor = null, int? Rank = null);
+    int[]? Auras = null, AuraRing? Ring = null, string? Rarity = null, string? NameColor = null, int? Rank = null, string? Glow = null);
+// Glow（PLAN-0004 C，只对 kind = enemy）：整只怪的外发光颜色（RRGGBB，mobs.json rarities 的 glow）；客户端在模型着色器里加边缘光。
 // Rarity / NameColor / Rank（PLAN-0006 B，2026-11-12，只对 kind = enemy）：DQQ 怪物稀有度（EnumMobRarity 名）与 mobs.json rarities 的表现：
 // 名字颜色（RRGGBB）、头像边框的 WoW 生物等级（CreatureQuery 的 rank：1 精英金龙、4 稀有银龙……）。客户端显示在 PLAN-0004 做；
 // 稀有度的身上光环已并进 Auras。

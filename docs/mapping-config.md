@@ -54,12 +54,12 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 
 ```jsonc
 "rarities": {
-  "Elite":    { "color": "FFFF77", "rank": 4, "aura": 28134 },  // 精英：黄，银龙，整只怪偏淡蓝（纯染色）
-  "Guardian": { "color": "FF9933", "rank": 1, "aura": 7069 }    // 守卫（首领）：橙，金龙，脚下淡金法阵
+  "Elite":    { "color": "FFFF77", "rank": 4, "glow": "4D80FF" },  // 精英：黄，银龙，整只怪向外发蓝光
+  "Guardian": { "color": "FF9933", "rank": 1, "glow": "FFC040" }   // 守卫（首领）：橙，金龙，发金光
 }
 ```
 
-`color` 是 RRGGBB；`rank` 是 WoW 生物等级（`CreatureQuery` 的 rank：0 无边框、1 精英金龙、2 稀有精英、3 首领、4 稀有银龙）；`aura` 是一个或几个光环法术，并进单位的 `auras`（光环栏），现在就生效。表现要克制（用户 2026-11-12：看得出是精英、首领就行，像 D3 那样偏色或脚下淡淡一圈，不要整团光）：偏色用光环的染色（SpellVisualKit 的 TINT 是乘到模型颜色上的，只能偏色、不会发光；纯染色、无粒子的有 28134 淡蓝 #AEAEFF），脚下圈用 7069。名字颜色和边框随帧下发（`actors[].rarity/nameColor/rank`），由客户端在 PLAN-0004 显示。DQQ 的帧快照不带稀有度，runtime 在第一次见到一个怪物时从 DQQ 地图上的活单位（`Map.AM.actors`）读 `Monster.Rarity`；`run-event-stats` 的日志里每场有一行"怪物稀有度：读到 N/M"。
+`color` 是 RRGGBB；`rank` 是 WoW 生物等级（`CreatureQuery` 的 rank：0 无边框、1 精英金龙、2 稀有精英、3 首领、4 稀有银龙）；`aura` 是一个或几个光环法术，并进单位的 `auras`（光环栏），现在就生效。表现要克制（用户 2026-11-12：看得出是精英、首领就行，像 D3 那样偏色或脚下淡淡一圈，不要整团光）：偏色用光环的染色（SpellVisualKit 的 TINT 是乘到模型颜色上的，只能偏色、不会发光；纯染色、无粒子的有 28134 淡蓝 #AEAEFF），脚下圈用 7069。名字颜色和边框随帧下发（`actors[].rarity/nameColor/rank`），客户端显示在头顶血条的名字上和选中时头像的龙上（PLAN-0004 C）。`glow`（2026-11-13，PLAN-0004 C）是整只怪的外发光颜色 RRGGBB，不写就不发光：客户端的模型着色器按单位加一层边缘光（轮廓处最亮，正对镜头的面只有很淡的一层），强度是着色器里克制的固定值（`wow_model.wgsl` 的 `EXILE_GLOW_RIM` / `EXILE_GLOW_WASH`），颜色只有 8 位精度（红绿各 8 级、蓝 4 级，写的颜色会取到最近的一档）。有了它，之前顶替用的 28134 偏色和 7069 脚下法阵已从表里去掉，想要可以再写回 `aura`，两者可以并存。DQQ 的帧快照不带稀有度，runtime 在第一次见到一个怪物时从 DQQ 地图上的活单位（`Map.AM.actors`）读 `Monster.Rarity`；`run-event-stats` 的日志里每场有一行"怪物稀有度：读到 N/M"。
 
 ### 2.2 `classes.json`
 
@@ -294,3 +294,4 @@ JSON，允许 `//` 注释和末尾多余的逗号。键名区分大小写；DQQ 
 | 2026-11-07 | Claude | 新增 maps.json（战场场景，§2.5）与 `.goto` 选点 |
 | 2026-11-07 | Claude | 新增 skills.json（技能表现，§2.6）；equipment.json 加标枪（长柄矛顶替，投掷） |
 | 2026-11-12 | Claude | mobs.json 加 `rarities`（稀有度：名字颜色、边框、光环）；skills.json 加 `cones`（顺劈画成施放者前方的锥形） |
+| 2026-11-13 | Claude | `rarities` 加 `glow`（外发光，PLAN-0004 C），去掉顶替用的 28134、7069 |

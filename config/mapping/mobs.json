@@ -33,13 +33,15 @@
   // 只需看得出是精英、首领：像 D3 那样整只怪偏色，或脚下一圈淡淡的。
   // 偏色用 WoW 光环的染色（SpellVisualKit 的 TINT，乘到模型颜色上，所以只能偏色、不会发光）：28134 Power Surge 是纯染色（淡蓝 #AEAEFF，无粒子）；
   // 原版没有柔和的金色染色（唯一的 24924 是很重的橙 #FF8000），首领改用脚下的淡金法阵 7069（激怒光环的 RetributionAura 底圈）。
-  // 名字颜色和边框由客户端在 PLAN-0004 显示；光环现在就生效。
+  //   glow：整只怪的外发光颜色 RRGGBB（PLAN-0004 C，用户 2026-11-13 决定做）：客户端模型着色器加的边缘光，强度是克制的固定值；
+  //         颜色只有 8 位精度（红绿各 8 级、蓝 4 级）。有了它，之前顶替用的 28134 偏色、7069 脚下法阵已去掉（想要可以再写回 aura）。
+  // 名字颜色（头顶血条上的名字）和边框（选中时头像的龙）由客户端显示（PLAN-0004 C）。
   "rarities": {
     "Normal":   { "color": "FFFFFF", "rank": 0, "note": "普通：白" },
     "Magic":    { "color": "8888FF", "rank": 0, "note": "魔法：蓝，无边框，无光环" },
-    "Elite":    { "color": "FFFF77", "rank": 4, "aura": 28134, "note": "精英：黄，银龙；整只怪偏淡蓝（Power Surge 染色）" },
-    "Champion": { "color": "FF9933", "rank": 1, "aura": 28134, "note": "冠军：橙，金龙；偏淡蓝" },
-    "Guardian": { "color": "FF9933", "rank": 1, "aura": 7069,  "note": "守卫（首领）：橙，金龙；脚下淡金法阵" }
+    "Elite":    { "color": "FFFF77", "rank": 4, "glow": "4D80FF", "note": "精英：黄，银龙；整只怪向外发蓝光" },
+    "Champion": { "color": "FF9933", "rank": 1, "glow": "FFC040", "note": "冠军：橙，金龙；发金光" },
+    "Guardian": { "color": "FF9933", "rank": 1, "glow": "FFC040", "note": "守卫（首领）：橙，金龙；发金光" }
   },
 
   // 每个 DQQ 怪物（EnumMob 名）：display = CreatureDisplayInfo id，或 dress = 上面的外观名；boss 只影响 `.lineup` 显示的大小。

@@ -59,6 +59,8 @@
 - 旋转技能的投射物（用户 2026-11-10）：照常飞；碰到敌人的区域事件 `action = projectileSpin`，`from` 是这个投射物，客户端让这个投射物施放事件的 `spell`（旋风斩）。`projects[]` 的 `spin` 标出这种投射物（客户端现在不用）。
 
 - `actors[].rarity / nameColor / rank`（2026-11-12，PLAN-0006 B，只对怪物）：DQQ 稀有度（`EnumMobRarity` 名）、名字颜色（RRGGBB）、头像边框的 WoW 生物等级（`CreatureQuery` 的 rank）。客户端的显示在 PLAN-0004 做；稀有度的身上光环已并进 `auras`。
+- `actors[].glow`（2026-11-13，PLAN-0004 C，只对怪物）：整只怪的外发光颜色（RRGGBB，`mobs.json` rarities 的 `glow`）。
+- 客户端对这几项的显示（PLAN-0004 C，2026-11-13）：回放期间所有单位头顶显示姓名板（名字 + 血条，英雄本体也有，不限 20 码，不显示等级；死了就没有），回放结束恢复玩家自己的姓名板设置；`nameColor` 给姓名板上的名字着色（白色不处理）；`rank` 写进 `CreatureQuery` 的回答（同名不同 rank 的怪物各占一个生物 entry），选中时头像带银龙、金龙；`glow` 进模型着色器的边缘光。清场时这些标记一并清掉。
 - 区域事件 `action = cone`（2026-11-12，顺劈）：`from` 转向区域中心（没有就转向 `target`），施放 `spell`，只播施法。`action = coneSwing`（挥砍类技能的顺劈）：`from` 施放 `spell`，只播特效、不播特效包自带的动作（客户端 Exile 开关），挥砍由伤害事件带出。
 - runtime 生成的事件 `DashStart`（2026-11-12）：英雄（`from`）开始冲刺，施放 `spell`（只播施法）；冲刺期间英雄的 `auras` 带冲刺光环。`DurationStart` 带 `hit: false` 时只播施法；runtime 生成的 `ChargeUpStart`（`from` 读条 `spell`，`amount` = 读条秒数）/ `ChargeUpEnd`（打断读条）：技能的蓄力（`chargeUps`）。
 - 伤害事件 `action = bothHands`（2026-11-12，迅猛攻击）：主手挥砍带一半伤害，0.2 秒后副手挥砍（HITINFO_LEFTSWING）带其余。伤害事件 `offHand: true`：双持英雄这一下用副手挥砍。
@@ -69,6 +71,20 @@
 
 `{id, tick, kind, from?, target?, skill?, tags[], phase?, shape?, range, centerX?, centerY?, element, amount, critical, killed, success, duration?, action?, spell, school}`
 `kind` 取 DQQ `EnumLogType`：CastSkill、TriggerSpell、SkillRangeAndTarget、DamageTaken、HealingTaken、Killed、ActorIsDown、ActiveAura（光环开启）；另有 runtime 生成的 `DurationStart`（`target` 身上出现了持续效果 `duration`）。客户端据此选动画、特效和飘字（architecture §5.4）。
+
+事件 → 客户端表现（PLAN-0004 A，实现在客户端 `net/exile.rs` 的 `play_event`；动作与法术怎么选见 `docs/skill-presentation.md`）：
+
+| `kind` | 客户端表现 |
+|--------|------------|
+| `CastSkill`、`ActiveAura` | `from` 施放 `spell`（`SMSG_SPELL_GO`：施法动作、自身特效、投射物、命中特效）；`hit: false` 只播施法；近战类 `action` 不在这里播（挥砍随伤害事件）；`channel` 类保持引导姿势 |
+| `SkillRangeAndTarget` | 按 `action`：`area` 在区域中心播区域特效（按 `scale` 缩放）；`cone` / `coneSwing` 施放者前方的锥形；`ray` 两端各放一个标记画光束；`projectileSpin` 由投射物施放旋风 |
+| `DamageTaken` | 近战类 `action`（`melee`、`mobAttack`、`bothHands`）是一次挥砍（`AttackerState`，带伤害数字）；其余发 `SpellDamageLog`，数字按 `school` 着色，`critical` 放大，没有 `action` 的（持续伤害）按周期伤害显示；`special` / `special2H` 先施放特殊攻击 |
+| `HealingTaken` | `SpellHealLog`（绿色数字） |
+| `Killed`、`ActorIsDown` | `target` 血量置 0，客户端播死亡动作与叫声；怪物从帧里消失后尸体留 3 秒再移除 |
+| `DurationStart` | `target` 身上播 `spell`（战吼之类）；常驻的部分走 `actors[].auras` |
+| `ChargeUpStart` / `ChargeUpEnd`、`DashStart` | 读条（`SpellStart`，`amount` 秒）/ 打断；冲刺的施法 |
+
+`success: false` 的事件不播。投射物不走事件：`projects[]` 里出现就从发射点向它飞（借 `spell` 的飞行模型，跟着 DQQ 的位置走），从 `projects[]` 消失就在最后的位置爆开，命中时刻以 DQQ 为准。
 
 PLAN-0006 D 起，runtime 按 `config/mapping/skills.json` 替客户端判定好演法：`action`（角色动作，如 melee、shoot、projectile、cast、channel、spin、nova）、`spell`（借用的 WoW 法术 id，客户端当作 `SMSG_SPELL_GO` 播放；0 = 不播）、`school`（伤害学派，飘字颜色）。`duration`：持续伤害/治疗来自的持续效果，或 `DurationStart` 的持续效果。另有 `scale`（区域特效的缩放）与 `hit`（false = 只播施法）。`projects[]` 的每项多一个 `spell`：这个投射物借用的 WoW 飞行法术（0 = 不画）。
 
@@ -136,3 +152,4 @@ PLAN-0006 D 起，runtime 按 `config/mapping/skills.json` 替客户端判定好
 | 2026-11-06 | Claude | 新增 §5 插件消息；ActorState 增 targetX/targetY |
 | 2026-11-07 | Claude | §5.2 对应表审阅（`ui.mapping.mobs`、生物名字）；怪物 `model` 改为数值 display id |
 | 2026-11-12 | Claude | ActorState 增 `rarity`、`nameColor`、`rank`；区域事件新增 `action = cone`（PLAN-0006） |
+| 2026-11-13 | Claude | §3.2 加"事件 → 客户端表现"表；ActorState 增 `glow`；姓名板、名字颜色、rank 的客户端显示（PLAN-0004） |

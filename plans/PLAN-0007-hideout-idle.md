@@ -41,7 +41,7 @@ DQQ.Web.Component 的 `IdleService.HeartBeatHandler` 按心跳推进挂机：
 - [ ] 桥接：按配置创建游戏物件/NPC（`ObjectCreate` GameObject 的字段、模型、名字查询应答 `GameObjectQuery`）
 - [ ] 桥接：接住 `GameObjUse`、`GossipHello`，转成插件消息 `open;<界面>`
 - [ ] 插件：按 `open;…` 打开对应窗口
-- [ ] 进入战场时隐藏这些物件，回来时恢复（D28）
+- [ ] 进入战场时隐藏这些物件，回来时恢复（D28）（PLAN-0004 F 的同一条于 2026-11-13 移交到这里）
 
 ### B. 挂机
 - [ ] runtime：为 `IdleService` 提供页面状态对象，定时调用 `HeartBeatHandler`；在线模式验证"服务器挂机 + 本地播放最新录像"的链路

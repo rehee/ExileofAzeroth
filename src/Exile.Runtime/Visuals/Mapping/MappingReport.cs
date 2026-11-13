@@ -34,8 +34,8 @@ public static class MappingReport
                 (rarityField != null ? $"（取自 TickLogActor.{rarityField.Name}）" : "（帧快照不带，战斗中从 DQQ 地图上的活单位读；读到多少见 event-stats 日志的“怪物稀有度”）"),
             Names<EnumMobRarity>(skip: "None"), MobLooks.Rarities.ContainsKey,
             k => MobLooks.Rarities.TryGetValue(k, out var r)
-                ? $"{r.Color} | {r.Rank} | {(r.Auras.Length > 0 ? string.Join("、", r.Auras) : "")} | {r.Note}" : null,
-            "名字颜色 | 生物等级（边框） | 光环 | 说明");
+                ? $"{r.Color} | {r.Rank} | {(r.Auras.Length > 0 ? string.Join("、", r.Auras) : "")} | {r.Glow ?? ""} | {r.Note}" : null,
+            "名字颜色 | 生物等级（边框） | 光环 | 外发光 | 说明");
         Section(md, "战斗风格 EnumCombatArcheType → WoW 职业", Names<EnumCombatArcheType>(skip: "None"), ClassLooks.Table.ContainsKey,
             k => ClassLooks.Table.TryGetValue(k, out var c) ? $"{c.ClassId} | {c.Note}" : null, "职业 id | 说明");
         Section(md, "装备 EnumItem → 装备外观（不含材料）", Enum.GetValues<EnumItem>().Where(i => (int)i >= 100000).Select(i => i.ToString()).ToArray(), MappingFiles.EquipItems.ContainsKey,

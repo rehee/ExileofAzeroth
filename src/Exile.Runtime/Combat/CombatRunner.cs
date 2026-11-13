@@ -300,7 +300,7 @@ public sealed class CombatRunner
         if (enemy && rarity != null)
         {
             var look = Visuals.Mapping.MobLooks.Rarity(rarity);
-            s = s with { Rarity = rarity, NameColor = look?.Color, Rank = look?.Rank };
+            s = s with { Rarity = rarity, NameColor = look?.Color, Rank = look?.Rank, Glow = look?.Glow };
             if (look is { Auras.Length: > 0 }) auras = auras.Concat(look.Auras).Distinct().Order().ToArray();
         }
         return auras.Length == 0 && ring == null ? s : s with { Auras = auras, Ring = ring };
