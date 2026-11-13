@@ -12,7 +12,7 @@
 | PLAN-0002 | 参考项目调研与架构选型 | 已完成 | Claude | 100% | 2026-11-06 | [PLAN-0002](PLAN-0002-tech-research.md) |
 | PLAN-0003 | 验证：方案 T 端到端打通 | 已完成 | Claude | 100% | 2026-11-07 | [PLAN-0003](PLAN-0003-spike-csharp-server.md) |
 | PLAN-0004 | 战斗表现 | 已完成 | Claude | 100% | 2026-11-13 | [PLAN-0004](PLAN-0004-combat-presentation.md) |
-| PLAN-0005 | 界面插件与 DQQ service | 待开始 | — | 0% | 2026-11-07 | [PLAN-0005](PLAN-0005-ui-addons.md) |
+| PLAN-0005 | 界面插件与 DQQ service | 待开始 | — | 0% | 2026-11-13 | [PLAN-0005](PLAN-0005-ui-addons.md) |
 | PLAN-0006 | DQQ ↔ WoW 对应表 | 已完成 | Claude | 100% | 2026-11-13 | [PLAN-0006](PLAN-0006-mapping-table.md) |
 | PLAN-0007 | 藏身处与后台挂机 | 待开始 | — | 0% | 2026-11-07 | [PLAN-0007](PLAN-0007-hideout-idle.md) |
 | PLAN-0008 | 启动器与发布 | 待开始 | — | 0% | 2026-11-07 | [PLAN-0008](PLAN-0008-launcher-release.md) |
