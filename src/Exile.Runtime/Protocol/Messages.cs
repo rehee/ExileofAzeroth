@@ -49,7 +49,10 @@ public sealed record CombatFrame(string CombatId, int Tick, ActorState[] Actors,
 public sealed record ActorState(string Id, string Kind, double X, double Y, double Radius, double Angle,
     double Hp, double? Life, double? MaxLife, bool Moving, string? Name, string? Mob, string Model,
     double? TargetX = null, double? TargetY = null, bool Oversize = false, Dress? Dress = null, int Spell = 0, bool Spin = false,
-    int[]? Auras = null, AuraRing? Ring = null);
+    int[]? Auras = null, AuraRing? Ring = null, string? Rarity = null, string? NameColor = null, int? Rank = null);
+// Rarity / NameColor / Rank（PLAN-0006 B，2026-11-12，只对 kind = enemy）：DQQ 怪物稀有度（EnumMobRarity 名）与 mobs.json rarities 的表现：
+// 名字颜色（RRGGBB）、头像边框的 WoW 生物等级（CreatureQuery 的 rank：1 精英金龙、4 稀有银龙……）。客户端显示在 PLAN-0004 做；
+// 稀有度的身上光环已并进 Auras。
 // Auras（PLAN-0006 D，2026-11-11）：这个单位身上的持续效果借用的 WoW 光环法术（skills.json 的 auras）：客户端写进它的光环栏，
 // 光环的常驻特效（护盾、燃烧、冰冻……）就一直挂着，没了就消失。Ring：以它为中心的一圈特效，显示范围（正义之火）。
 
@@ -76,7 +79,9 @@ public sealed record CombatEvent(string Id, int Tick, string Kind, string? From,
     string? Skill, string[] Tags, string? Phase, string? Shape, double Range, double? CenterX, double? CenterY,
     string Element, double Amount, bool Critical, bool Killed, bool Success,
     string? Duration = null, string? Action = null, int Spell = 0, int School = 0, double Scale = 1, bool Hit = true,
-    double? EndX = null, double? EndY = null, double[]? Color = null, bool Channel = false);
+    double? EndX = null, double? EndY = null, double[]? Color = null, bool Channel = false, bool? OffHand = null);
+// OffHand（2026-11-12）：双持英雄的这一下挥砍用副手（客户端的自动攻击包带 HITINFO_LEFTSWING，播副手攻击动作）；
+// 同一次出手（同一 tick）打中的几个目标用同一只手，下一次出手换手。
 // 射线（action = ray）：CenterX/CenterY 为出发点（DQQ 日志的 From，例如爆炸的火球投射物），EndX/EndY 为结束处（日志的 Target）。
 // Duration：持续效果（持续伤害/治疗来自哪个持续效果，或 DurationStart 的那个）。Action / Spell / School：runtime 按
 // config/mapping/skills.json 判定的角色动作、借用的 WoW 法术（0 = 不播）、伤害学派（PLAN-0006 D）。

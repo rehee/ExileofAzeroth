@@ -58,6 +58,11 @@
 
 - 旋转技能的投射物（用户 2026-11-10）：照常飞；碰到敌人的区域事件 `action = projectileSpin`，`from` 是这个投射物，客户端让这个投射物施放事件的 `spell`（旋风斩）。`projects[]` 的 `spin` 标出这种投射物（客户端现在不用）。
 
+- `actors[].rarity / nameColor / rank`（2026-11-12，PLAN-0006 B，只对怪物）：DQQ 稀有度（`EnumMobRarity` 名）、名字颜色（RRGGBB）、头像边框的 WoW 生物等级（`CreatureQuery` 的 rank）。客户端的显示在 PLAN-0004 做；稀有度的身上光环已并进 `auras`。
+- 区域事件 `action = cone`（2026-11-12，顺劈）：`from` 转向区域中心（没有就转向 `target`），施放 `spell`，只播施法。`action = coneSwing`（挥砍类技能的顺劈）：`from` 施放 `spell`，只播特效、不播特效包自带的动作（客户端 Exile 开关），挥砍由伤害事件带出。
+- runtime 生成的事件 `DashStart`（2026-11-12）：英雄（`from`）开始冲刺，施放 `spell`（只播施法）；冲刺期间英雄的 `auras` 带冲刺光环。`DurationStart` 带 `hit: false` 时只播施法；runtime 生成的 `ChargeUpStart`（`from` 读条 `spell`，`amount` = 读条秒数）/ `ChargeUpEnd`（打断读条）：技能的蓄力（`chargeUps`）。
+- 伤害事件 `action = bothHands`（2026-11-12，迅猛攻击）：主手挥砍带一半伤害，0.2 秒后副手挥砍（HITINFO_LEFTSWING）带其余。伤害事件 `offHand: true`：双持英雄这一下用副手挥砍。
+- 伤害事件 `action = special / special2H`（2026-11-12）：不带基础、核心标签的英雄挥砍；`from` 向 `target` 施放 `spell`（英勇打击 / 猛击：特殊攻击动作 + 命中闪光），数字按法术伤害显示。
 - `actors[].auras`（2026-11-11）：这个单位此刻带着的常驻光环法术（去重、排序）；客户端写进光环栏（前 8 格），变了才发。`actors[].ring = {spell, radius, count}`：以它为中心的范围圈（`radius` 是 DQQ 距离）。
 
 ### 3.2 CombatEvent（`events[]`）
@@ -130,3 +135,4 @@ PLAN-0006 D 起，runtime 按 `config/mapping/skills.json` 替客户端判定好
 | 2026-11-06 | Claude | v1 草案，含首次实测 |
 | 2026-11-06 | Claude | 新增 §5 插件消息；ActorState 增 targetX/targetY |
 | 2026-11-07 | Claude | §5.2 对应表审阅（`ui.mapping.mobs`、生物名字）；怪物 `model` 改为数值 display id |
+| 2026-11-12 | Claude | ActorState 增 `rarity`、`nameColor`、`rank`；区域事件新增 `action = cone`（PLAN-0006） |

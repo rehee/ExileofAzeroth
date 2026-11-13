@@ -27,7 +27,27 @@ public static class SkillLooks
     private static Dictionary<string, (string? Action, Dictionary<string, int>? Spell)> skills = new();
     private static HashSet<string> noHit = [];
     private static Dictionary<string, int> durations = new();
-    private sealed record AuraLook(int Hero, int Enemy, int RingSpell, double RingRadius, int RingCount, string? RingDistance, int RingArea, double RingNative);
+    /// <summary>持续效果开始时只播施法、不播命中（durations 的 "hit": false）。</summary>
+    private static HashSet<string> durationsNoHit = [];
+    /// <summary>冲刺（dash）：英雄每帧位移超过 Speed（DQQ 单位）算冲刺；开始时播 Spell，冲刺期间挂 Aura。</summary>
+    public static (int Spell, int Aura, double Speed) Dash { get; private set; }
+    /// <summary>
+    /// 蓄力（chargeUps，用户 2026-11-12）：技能的蓄力没有日志，DQQ 只在蓄力时给持续效果 Duration（总时长 ≥ MinSeconds），
+    /// 拿它当时间信号：出现时英雄读条 Hold 法术（读条的预备动作，如蹲着施法），冲刺开始或持续效果结束时打断。
+    /// 持续效果本身的表现不受影响（照常按 auras）。键是技能名。
+    /// </summary>
+    public static IReadOnlyList<(string Skill, string Duration, double MinSeconds, int Start, int Hold)> ChargeUps { get; private set; } = [];
+
+    /// <summary>这个持续效果（总时长 seconds）是不是某个技能的蓄力；不是为 null。</summary>
+    public static (string Skill, string Duration, double MinSeconds, int Start, int Hold)? ChargeUp(string duration, double seconds) =>
+        ChargeUps.Where(c => c.Duration == duration && seconds >= c.MinSeconds)
+            .Cast<(string, string, double, int, int)?>().FirstOrDefault();
+    /// <param name="Extra">再叠加的光环（数组写法的其余几个，谁身上都挂；用户 2026-11-12：超级霸王电影弹的火球 + 火焰龙卷 + 拖尾）。</param>
+    /// <param name="Linger">持续效果没了以后特效再留几秒（太短的 buff 特效来不及出现；用户 2026-11-12：超级霸王电影弹的 buff 只有 0.3 秒）。</param>
+    private sealed record AuraLook(int Hero, int Enemy, int RingSpell, double RingRadius, int RingCount, string? RingDistance, int RingArea, double RingNative, int[]? Extra = null, double Linger = 0);
+
+    /// <summary>持续效果没了以后特效再留的秒数（auras 的 linger）；没配为 0。</summary>
+    public static double AuraLinger(string duration) => auras.TryGetValue(duration, out var a) ? a.Linger : 0;
     private static readonly Dictionary<string, double> distances = new();
     private static Dictionary<string, AuraLook> auras = new();
     /// <summary>地面模型库（groundModels，PLAN-0011）：名字 → (地面法术，模型原本的半径码)。范围圈与角色配置的 ring 按名字引用。</summary>
@@ -68,6 +88,7 @@ public static class SkillLooks
             if (a == null && skin == null) continue;
             var spell = enemy ? a?.Enemy ?? 0 : skin?.Hero ?? a?.Hero ?? 0;
             if (spell > 0) set.Add(spell);
+            foreach (var x in a?.Extra ?? []) set.Add(x);
             // 范围圈只给效果的主人（英雄一侧）：敌人身上的同名效果是被烧。
             if (enemy || ring != null) continue;
             if (skin?.Ring is { } r)
@@ -140,20 +161,51 @@ public static class SkillLooks
     private static Dictionary<string, Dictionary<string, int>> rays = new();
     /// <summary>射线的染色：(形状, 键) → RGB 倍数（光束贴图乘上它；加色混合，可大于 1 提亮）。</summary>
     private static Dictionary<(string, string), double[]> rayColors = new();
+    /// <summary>画成施放者前方锥形的形状（顺劈）：形状 → 法术（按元素、技能标签）。施放者转向区域中心，只播施法。</summary>
+    private static Dictionary<string, Dictionary<string, int>> cones = new();
     /// <summary>不是引导光束的射线（闪电链这类一次性的弧线，用施放画）：(形状, 键)。</summary>
     private static HashSet<(string, string)> rayCasts = [];
 
     /// <summary>读取结果的一句话（runtime 日志）。</summary>
-    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、射线 {rays.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}、光环 {auras.Count}、地面模型 {groundModels.Count}";
+    public static string Summary => $"元素 {elements.Count}、动作 {actions.Count}、区域 {areas.Count}、射线 {rays.Count}、锥形 {cones.Count}、技能覆盖 {skills.Count}、持续效果 {durations.Count}、光环 {auras.Count}、地面模型 {groundModels.Count}";
 
     public static IReadOnlyDictionary<string, (int School, string Note)> Elements => elements;
     public static IReadOnlyDictionary<string, (string? Action, Dictionary<string, int>? Spell)> Skills => skills;
     public static IReadOnlyDictionary<string, int> Durations => durations;
     public static IReadOnlyCollection<string> ActionNames => actions.Keys;
 
+    /// <summary>对应表现状（<c>--mapping-report</c>）：这个形状怎么画（射线或区域，按元素/标签列出借用的法术）；没配为 null。</summary>
+    public static string? ShapeLook(string shape)
+    {
+        if (rays.TryGetValue(shape, out var r))
+            return "射线：" + string.Join("、", r.Select(p => $"{p.Key} {p.Value}{(rayCasts.Contains((shape, p.Key)) ? "（施放）" : "（引导）")}"));
+        if (cones.TryGetValue(shape, out var cn))
+            return "锥形（施放者转向中心后施放）：" + string.Join("、", cn.Select(p => $"{p.Key} {p.Value}"));
+        if (areas.TryGetValue(shape, out var list))
+            return "区域：" + string.Join("；", list.Select(b => $"{(b.UpTo is { } u ? $"半径 ≤ {u}" : "其余")} " +
+                string.Join("、", b.Spell.Select(p => $"{p.Key} {p.Value}"))));
+        return null;
+    }
+
+    /// <summary>对应表现状：持续效果在身上期间的常驻光环（auras）；没配为 null。</summary>
+    public static string? AuraLookText(string duration)
+    {
+        if (!auras.TryGetValue(duration, out var a)) return null;
+        var parts = new List<string>();
+        if (a.Hero > 0 && a.Hero == a.Enemy) parts.Add($"光环 {string.Join("、", new[] { a.Hero }.Concat(a.Extra ?? []))}");
+        else
+        {
+            if (a.Hero > 0) parts.Add($"英雄 {a.Hero}");
+            if (a.Enemy > 0) parts.Add($"敌人 {a.Enemy}");
+        }
+        if (a.RingArea > 0) parts.Add($"范围圈：地面法术 {a.RingArea}（{a.RingDistance ?? a.RingRadius.ToString()}）");
+        else if (a.RingSpell > 0) parts.Add($"范围圈：{a.RingCount} × 法术 {a.RingSpell}（{a.RingDistance ?? a.RingRadius.ToString()}）");
+        return parts.Count > 0 ? string.Join("，", parts) : null;
+    }
+
     /// <summary>所有动作名（规则可能给出的）；<c>skills.json</c> 的 actions 与 skills.*.action 只能用这些。</summary>
     public static readonly string[] KnownActions =
-        ["melee", "mobAttack", "shoot", "wandShoot", "throw", "projectile", "cast", "channel", "spin", "spinChannel", "nova", "shout",
+        ["melee", "special", "special2H", "bothHands", "mobAttack", "shoot", "wandShoot", "throw", "projectile", "cast", "channel", "spin", "spinChannel", "nova", "shout",
          "aura", "kick", "charge", "judgement", "none"];
 
     public static void Load(string path, List<string> errors)
@@ -235,7 +287,24 @@ public static class SkillLooks
                 var at = $"{file} auras.{a.Name}";
                 if (!Enum.TryParse<DQQ.Enums.EnumDurationNumber>(a.Name, out _)) errors.Add($"{at}：DQQ 没有这个持续效果（EnumDurationNumber），拼写？");
                 if (a.Value.ValueKind == JsonValueKind.Number && a.Value.TryGetInt32(out var both)) { aus[a.Name] = new AuraLook(both, both, 0, 0, 0, null, 0, 0); continue; }
+                // 几个光环叠在一起（数组）：谁身上都挂。
+                if (a.Value.ValueKind == JsonValueKind.Array)
+                {
+                    var ids = a.Value.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Number && x.TryGetInt32(out _)).Select(x => x.GetInt32()).Where(x => x > 0).ToArray();
+                    if (ids.Length == 0) { errors.Add($"{at}：数组里要写 WoW 法术 id"); continue; }
+                    aus[a.Name] = new AuraLook(ids[0], ids[0], 0, 0, 0, null, 0, 0, ids.Skip(1).ToArray());
+                    continue;
+                }
                 if (a.Value.ValueKind != JsonValueKind.Object) { errors.Add($"{at}：要写 WoW 法术 id，或 {{ hero, enemy, ring }}"); continue; }
+                // { "spells": [几个叠加的光环], "linger": 秒 }：持续效果没了以后再留一会儿。
+                if (a.Value.TryGetProperty("spells", out var sps) && sps.ValueKind == JsonValueKind.Array)
+                {
+                    var ids = sps.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Number && x.TryGetInt32(out _)).Select(x => x.GetInt32()).Where(x => x > 0).ToArray();
+                    if (ids.Length == 0) { errors.Add($"{at}.spells：要写 WoW 法术 id"); continue; }
+                    var linger = a.Value.TryGetProperty("linger", out var lg) && lg.ValueKind == JsonValueKind.Number ? lg.GetDouble() : 0;
+                    aus[a.Name] = new AuraLook(ids[0], ids[0], 0, 0, 0, null, 0, 0, ids.Skip(1).ToArray(), linger);
+                    continue;
+                }
                 var any = MappingFiles.Int(a.Value, "spell") ?? 0;
                 int ringSpell = 0, count = 0, area = 0; double radius = 0, native = 0; string? distance = null;
                 if (a.Value.TryGetProperty("ring", out var rg) && rg.ValueKind == JsonValueKind.Object)
@@ -267,12 +336,21 @@ public static class SkillLooks
         auras = aus;
 
         var durs = new Dictionary<string, int>();
+        var dnh = new HashSet<string>();
+        var dash = (Spell: 0, Aura: 0, Speed: 0.08);
+        if (root.TryGetProperty("dash", out var dashEl) && dashEl.ValueKind == JsonValueKind.Object)
+            dash = (MappingFiles.Int(dashEl, "spell") ?? 0, MappingFiles.Int(dashEl, "aura") ?? 0,
+                dashEl.TryGetProperty("speed", out var dashSpeed) && dashSpeed.ValueKind == JsonValueKind.Number ? dashSpeed.GetDouble() : 0.08);
         if (root.TryGetProperty("durations", out var ds) && ds.ValueKind == JsonValueKind.Object)
             foreach (var d in ds.EnumerateObject())
             {
                 var at = $"{file} durations.{d.Name}";
                 if (!Enum.TryParse<DQQ.Enums.EnumDurationNumber>(d.Name, out _)) errors.Add($"{at}：DQQ 没有这个持续效果（EnumDurationNumber），拼写？");
-                if (MappingFiles.Int(d.Value, "start") is { } start) durs[d.Name] = start;
+                if (MappingFiles.Int(d.Value, "start") is { } start)
+                {
+                    durs[d.Name] = start;
+                    if (d.Value.TryGetProperty("hit", out var dh) && dh.ValueKind == JsonValueKind.False) dnh.Add(d.Name);
+                }
                 else if (d.Value.ValueKind == JsonValueKind.Number && d.Value.TryGetInt32(out var n)) durs[d.Name] = n;
                 else errors.Add($"{at}：要写 WoW 法术 id（数字，或 {{ \"start\": id }}）");
             }
@@ -337,7 +415,27 @@ public static class SkillLooks
                 rys[r.Name] = map;
             }
 
+        var cns = new Dictionary<string, Dictionary<string, int>>();
+        if (root.TryGetProperty("cones", out var cn) && cn.ValueKind == JsonValueKind.Object)
+            foreach (var c in cn.EnumerateObject())
+            {
+                var at = $"{file} cones.{c.Name}";
+                if (!Enum.TryParse<DQQ.Enums.EnumSkillShape>(c.Name, out _)) errors.Add($"{at}：DQQ 没有这个技能形状（EnumSkillShape）");
+                var map = new Dictionary<string, int>();
+                if (c.Value.ValueKind == JsonValueKind.Object)
+                    foreach (var p in c.Value.EnumerateObject())
+                    {
+                        if (p.Name != "*" && !els.ContainsKey(p.Name) && !Enum.TryParse<DQQ.Enums.EnumSkillTag>(p.Name, out _))
+                            errors.Add($"{at}.{p.Name}：既不是元素也不是技能标签（EnumSkillTag）");
+                        if (p.Value.ValueKind == JsonValueKind.Number && p.Value.TryGetInt32(out var id)) map[p.Name] = id;
+                        else errors.Add($"{at}.{p.Name}：要写 WoW 法术 id");
+                    }
+                else errors.Add($"{at}：要写 {{ \"Fire\": id, \"*\": id }}");
+                cns[c.Name] = map;
+            }
+
         elements = els;
+        cones = cns;
         areas = ars;
         rays = rys;
         rayColors = rc;
@@ -345,7 +443,20 @@ public static class SkillLooks
         actions = acts;
         skills = sks;
         noHit = nh;
+        var cups = new List<(string, string, double, int, int)>();
+        if (root.TryGetProperty("chargeUps", out var cu) && cu.ValueKind == JsonValueKind.Object)
+            foreach (var c in cu.EnumerateObject())
+            {
+                var at = $"{file} chargeUps.{c.Name}";
+                var dur = c.Value.TryGetProperty("duration", out var dd) ? dd.GetString() : null;
+                if (dur == null || !Enum.TryParse<DQQ.Enums.EnumDurationNumber>(dur, out _)) { errors.Add($"{at}.duration：要写 DQQ 持续效果名（EnumDurationNumber）"); continue; }
+                var min = c.Value.TryGetProperty("minSeconds", out var ms) && ms.ValueKind == JsonValueKind.Number ? ms.GetDouble() : 0;
+                cups.Add((c.Name, dur, min, MappingFiles.Int(c.Value, "start") ?? 0, MappingFiles.Int(c.Value, "hold") ?? 0));
+            }
+        ChargeUps = cups;
         durations = durs;
+        durationsNoHit = dnh;
+        Dash = dash;
     }
 
     /// <summary>一个数字（任何元素都用它），或 <c>{ "元素": 法术, "*": 其余元素 }</c>。</summary>
@@ -370,6 +481,9 @@ public static class SkillLooks
         if (element != null) MappingLog.Miss("EnumDamageType", element);
         return 0;
     }
+
+    /// <summary>持续效果开始时的法术是否播命中（durations 写 "hit": false 的只播施法）。</summary>
+    public static bool DurationHit(string? duration) => duration == null || !durationsNoHit.Contains(duration);
 
     /// <summary>持续效果开始时播的 WoW 法术；没配 = 不播（大多数持续效果）。</summary>
     public static int DurationSpell(string? duration, CharConfig? cfg = null) =>
@@ -460,6 +574,16 @@ public static class SkillLooks
                 Channel = key == null || !rayCasts.Contains((shape, key)),
             };
         }
+        // 顺劈（docs/skill-presentation.md：施法者前方的弧形；法术 Claude 2026-11-12 先挑，等用户在游戏里看）：施放者转向区域中心，施放锥形法术（只播施法，伤害由伤害事件带出）。
+        // 引导、旋转、新星自己已有表现，不另画（奥术洪流的区域日志也记成顺劈）。
+        if (cones.TryGetValue(shape, out var cone))
+        {
+            var cs = action is "nova" or "spin" or "spinChannel" or "channel" ? 0 : Pick(cone, element, tags);
+            // 挥砍类（普攻 + 顺劈辅助，用户 2026-11-12）：施放者自己施放，但客户端不播顺劈斩自带的施法动作（Special1H，原版强制全身，
+            // 移动中会吃掉上半身的挥砍）——coneSwing 只要刀光；攻击动作按技能标签由伤害事件带出（AttackKind）。
+            var swing = action is "melee" or "mobAttack" or "special" or "special2H" or "bothHands";
+            return new SkillPlay(cs > 0 ? swing ? "coneSwing" : "cone" : "none", cs, School(element), Hit: false);
+        }
         if (action is "nova" or "spin" or "spinChannel" or "channel" || Band(shape, range) is not { } a)
             return new SkillPlay("none", 0, School(element));
         // 按技能标签选（用户 2026-11-07）：先看元素，再看其他标签（如 Melee → 冲击波），最后 "*"。
@@ -489,12 +613,25 @@ public static class SkillLooks
               ?? list.Where(b => b.UpTo == null).Cast<(double?, Dictionary<string, int>, double)?>().FirstOrDefault()
             : null;
 
+    /// <summary>双手拿的武器（equipment.json 的 weapon）：特殊攻击用双手的 Special2H。弓的肉搏是双手挥（用户 2026-11-09）。</summary>
+    private static readonly HashSet<string> TwoHanded = ["sword2h", "axe2h", "mace2h", "polearm", "staff", "bow"];
+
+    /// <summary>
+    /// 攻击动作分普通与特殊（用户 2026-11-12）：WoW 原版有自动攻击与特殊攻击（英勇打击、猛击……）两套动作，DQQ 没有这个区分，
+    /// 按技能标签定——带"基础"（Basic）或"核心"（Core）的用普通攻击动作，其他的用特殊攻击动作（Special1H/2H，空手时客户端换成 SpecialUnarmed）。
+    /// 只对英雄的挥砍（melee）；怪物用它自己的攻击动画。
+    /// </summary>
+    public static string AttackKind(string action, IReadOnlyCollection<string> tags, string? weapon, bool enemy) =>
+        action == "melee" && !enemy && !tags.Contains("Basic") && !tags.Contains("Core")
+            ? weapon != null && TwoHanded.Contains(weapon) ? "special2H" : "special"
+            : action;
+
     /// <summary>一个技能事件的演法。</summary>
     /// <param name="cfg">施放者的角色配置（PLAN-0011）：skills.* 换动作、借用的法术。</param>
     public static SkillPlay Play(string? skill, IReadOnlyCollection<string> tags, string? element, string? weapon, bool enemy, CharConfig? cfg = null)
     {
         var action = (skill != null && cfg != null && cfg.Skills.TryGetValue(skill, out var own) ? own.Action : null)
-            ?? ActionFor(skill, tags, weapon, enemy);
+            ?? AttackKind(ActionFor(skill, tags, weapon, enemy), tags, weapon, enemy);
         return new SkillPlay(action, SpellFor(action, skill, element, cfg), School(element), skill == null || !noHit.Contains(skill));
     }
 }

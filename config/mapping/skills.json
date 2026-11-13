@@ -31,6 +31,10 @@
     "aura":       { "Cold": 7302, "Lightning": 324, "Chaos": 706, "*": 588 },
     // 开启光环（用户 2026-11-11）：第一次激活时做一次举手的施法动作（SpellCastOmni），之后被动激活不做动作（runtime 只发第一次）。
     // 冰甲术、闪电之盾、魔甲术、心灵之火（其余，含火焰）：都是举手施法、手上有对应元素的光。
+    // 特殊攻击动作（用户 2026-11-12）：英雄的挥砍，技能不带"基础"或"核心"标签时，伤害到达时施放这个法术——只为它的施法动作
+    // （特殊攻击，原版强制全身播放）和命中处的打击闪光；带基础、核心的仍是普通攻击动作（移动时只播上半身）。空手时客户端自己换成 SpecialUnarmed。
+    "special":    78,      // 英勇打击：Special1H，无施法特效，命中 Strike Impact
+    "special2H":  1464,    // 猛击：Special2H（双手武器、弓）
     "kick":       1766,    // 脚踢
     "charge":     100,     // 冲锋
     "judgement":  20271    // 审判（尸爆、自毁命令、召唤的施法动作）
@@ -81,9 +85,38 @@
     }
   },
 
+  // 画成施放者前方锥形的形状（顺劈 Cleave：顺劈辅助、喷火）：施放者转向区域中心，施放这个法术（只播施法：
+  // 锥形特效从施放者身前出来，伤害数字和受击由伤害事件带出）。按技能标签选：先元素，再其他标签，最后 "*"。
+  // 引导、旋转、新星不画（奥术洪流的区域日志也记成顺劈）。Claude 2026-11-12 按 DBC 的施法特效先挑，等用户在游戏里看。
+  "cones": {
+    "Cleave": {
+      "Fire":  19630,   // 火焰锥（Dragon Flame Breath 180：嘴前半圆的火焰吐息）——喷火
+      "Cold":  120,     // 冰锥术（Cone of Cold Hand）
+      "Chaos": 28352,   // 萨格拉斯之息（奈法利安的暗影烈焰吐息）
+      "*":     845      // 顺劈斩（Cleave Cast Base：脚下弧形刀光）——物理；闪电在 1.12 没有锥形法术，也用它
+    }
+  },
+
+  // 蓄力（用户 2026-11-12，超级霸王电影弹的特殊规则：蹲下蓄力 → 冲锋 → 特殊攻击，不吼叫）。
+  // DQQ 不写蓄力的日志，只在蓄力时给英雄加一个有时长的持续效果：duration 出现、总时长 ≥ minSeconds（秒）时算蓄力开始——
+  // 这是技能规则，持续效果本身（无敌是 buff）照常只挂 auras 的护罩。蓄力时英雄读条 hold 法术，读条时长 = 蓄力时长，
+  // 原版读条期间循环播法术的预备动作；冲刺开始（或持续效果结束）时打断读条。七星闪出招时的无敌总时长 0，不算。
+  //   hold 1464 猛击：读条的预备动作 ReadyAbility（近战蓄势），无特效（用户 2026-11-12：蹲下再站起来和模型不搭，改用近战读条）
+  "chargeUps": {
+    "ChoukyuuHaouDenEidan": { "duration": "DamageInvincibility", "minSeconds": 1, "hold": 1464 }
+  },
+
+  // 冲刺（用户 2026-11-12：冲锋、野蛮冲撞还是走过去，要冲锋的音效和拖尾）：DQQ 的冲锋类技能是快速位移（每帧 0.13～0.6 单位，普通移动约 0.02），
+  // 施放日志要等撞到目标才来。runtime 按英雄每帧位移超过 speed 认作冲刺：开始时英雄施放 spell（冲锋：冲锋音效、胸口拖尾、落地扬尘，只播施法），
+  // 冲刺期间挂 aura（速度：身后的拖尾）。
+  "dash": { "spell": 100, "aura": 23451, "speed": 0.08 },
+
   // 个别技能覆盖：action 改动作，spell 改法术（数字，或按元素）。
   "skills": {
     // 旋风斩不再单独覆盖：DQQ 加了 Spin 标签（用户 2026-11-10），按标签走 spinChannel。
+    // 特殊动作（用户 2026-11-12，docs/skill-presentation.md §2.1.3）：
+    "ShieldBash":      { "action": "special", "spell": 72 },  // 盾击：盾牌猛击的 ShieldBash 动作（59），命中打击特效；伤害到达时施放
+    "SwingAttack":     { "action": "bothHands" },             // 迅猛攻击：主副手同时攻击——1.12 没有双手同时的动作，主手、副手紧接着各砍一下，伤害数字分成两半
     "Charge":          { "action": "charge" },
     "BrutalCharge":    { "action": "charge" },
     "CorpseExplosion": { "action": "judgement" },
@@ -92,7 +125,7 @@
     "Renew":           { "spell": 139 },    // 恢复
     "PowerWordShield": { "spell": 17 },     // 真言术：盾
     "Lightning":       { "spell": 403, "hit": false },  // 只播闪电箭的施法；闪电本身由射线（rays.Ray）画
-    "Flamethrow":      { "spell": 2120 },   // 烈焰风暴
+    "Flamethrow":      { "spell": 2136, "hit": false },  // 只做施法动作；火焰由顺劈锥形（cones.Cleave.Fire）画（之前是烈焰风暴 2120，落在目标身上）
     "SpecialBeamCannon": { "spell": 15407, "hit": false }, // 只播施法；光束由射线（rays.Ray）画
     // 烈焰新星：向四周发射火球（DQQ 投射物），自身的爆炸没有伤害，不播新星圈（用户 2026-11-07）；只做施法动作（火焰冲击的施法）
     "FireNova":        { "action": "cast", "spell": 2136, "hit": false }   // hit: false = 只播施法，不播命中特效
@@ -100,9 +133,9 @@
 
   // 持续效果出现时（runtime 比较前后帧）在带上它的角色身上播的法术。用于没有施放日志的技能。
   "durations": {
-    "BattleShout":          6673,  // 战吼：DQQ 不写施放日志，以持续效果出现为施放
-    "DamageInvincibility":  642,   // 超级霸王电影弹蓄力时的无敌：圣盾术
-    "ChoukyuuHaouDenEidan": 100    // 超级霸王电影弹的冲刺：冲锋
+    "BattleShout":          6673   // 战吼：DQQ 不写施放日志，以持续效果出现为施放
+    // 无敌（DamageInvincibility）是 buff（用户 2026-11-12）：不配开始的动作，只由 auras 挂圣盾术的护罩。
+    // 超级霸王电影弹的冲刺不再单独配：由下面的 dash 统一处理
   },
 
   // 持续效果在身上期间常驻的 WoW 光环特效（Claude 2026-11-11 先挑，等用户审）。借用的法术要有“状态”特效包才看得见。
@@ -115,7 +148,8 @@
     "Renew":                139,    // 恢复的绿色光点
     "DamageInvincibility":  642,    // 圣盾术的金色罩子
     "ContraProtection":     1022,   // 保护祝福
-    "ArcaneSurge":          12042,  // 奥术强化：胸口的奥术光
+    // 奥术涌动：用户 2026-11-13——胸口的奥术光球（12042 奥术强化）太刺眼，换成脚下的法阵：466 光辉光环（BrillianceAura，蓝色光圈）。
+    "ArcaneSurge":          466,
     "Freeze":               122,    // 冰霜新星：脚下结冰
     "GlacialHammerDuration": 122,
     "HolyFreeze":           { "enemy": 122 },
@@ -123,7 +157,11 @@
     "HolyShock":            { "enemy": 324 },    // 闪电之盾：身边的电球
     "SelfDestruct":         23537,  // 激怒：发红
     "BrutalCharge":         23451,  // 速度：身后的拖尾
-    "ChoukyuuHaouDenEidan": 23451,  // 冲刺期间的拖尾
+    // 超级霸王电影弹（DQQ 冲刺时给英雄的同名 buff）：周身被火焰气团笼罩（用户 2026-11-12，参考东方不败的超级霸王电影弹）。
+    // Claude 按 DBC 的状态特效先挑，等用户看：23097 Fire Reflector（胸口一圈橙红护盾球）+ 16048 Emberseer Growing（周身旋转的火焰龙卷）+ 23451 速度拖尾。
+    // 备选：6345 Polymorphic Explosion（脚下火焰新星 + 全身偏红）、642 圣盾术（金色光罩）、17 真言术：盾（白色光罩）。
+    // buff 只有 0.3 秒（9 帧，冲刺时），特效来不及出现：linger = buff 没了以后再留 0.8 秒，从冲出去一直包到撞上之后。
+    "ChoukyuuHaouDenEidan": { "spells": [23097, 16048, 23451], "linger": 0.8 },
     // 正义之火（用户 2026-11-11：像 PoE 那样显示范围）：被烧的敌人身上着火；主人周围一圈火（半径 = DQQ 判定用的 Middle 距离）。
     // ring.area = 借用地面法术的区域模型画一个圆（不用一圈火柱，用户 2026-11-11），native = 这个模型原本的半径（码），按它缩放到 distance。
     // area 是借用的法术：先用它的区域模型（奉献、地狱烈焰这类地面法术），没有就用它施法特效的模型（圣骑士光环脚下的圈）。

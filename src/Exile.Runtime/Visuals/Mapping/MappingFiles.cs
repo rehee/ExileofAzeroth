@@ -25,6 +25,7 @@ public static class MappingFiles
 
     public static IReadOnlyDictionary<string, MobLook> Mobs { get; private set; } = new Dictionary<string, MobLook>();
     public static MobLook MobFallback { get; private set; } = new(26, null, "回退", null, false);
+    public static IReadOnlyDictionary<string, RarityLook> Rarities { get; private set; } = new Dictionary<string, RarityLook>();
     public static IReadOnlyDictionary<string, (int ClassId, string Note)> Classes { get; private set; } =
         new Dictionary<string, (int, string)>();
     public static int ClassFallback { get; private set; } = 1;
@@ -154,8 +155,30 @@ public static class MappingFiles
                     m.Value.TryGetProperty("boss", out var b) && b.ValueKind == JsonValueKind.True);
             }
         else errors.Add($"{file}：缺少 \"mobs\"");
+        // 稀有度（EnumMobRarity 名）→ 名字颜色、头像边框、身上光环（PLAN-0006 B）。
+        var rarities = new Dictionary<string, RarityLook>();
+        if (root.TryGetProperty("rarities", out var rs) && rs.ValueKind == JsonValueKind.Object)
+            foreach (var r in rs.EnumerateObject())
+            {
+                var where = $"{file} rarities.{r.Name}";
+                if (!Enum.TryParse<DQQ.Enums.EnumMobRarity>(r.Name, out _)) errors.Add($"{where}：DQQ 没有这个稀有度（EnumMobRarity），拼写？");
+                var color = Str(r.Value, "color") ?? "FFFFFF";
+                if (color.Length != 6 || !int.TryParse(color, System.Globalization.NumberStyles.HexNumber, null, out _))
+                { errors.Add($"{where}.color：要写 RRGGBB（如 \"8888FF\"）"); color = "FFFFFF"; }
+                var auras = new List<int>();
+                if (r.Value.TryGetProperty("aura", out var av))
+                {
+                    if (av.ValueKind == JsonValueKind.Number && av.TryGetInt32(out var one)) auras.Add(one);
+                    else if (av.ValueKind == JsonValueKind.Array)
+                        foreach (var x in av.EnumerateArray())
+                            if (x.ValueKind == JsonValueKind.Number && x.TryGetInt32(out var id)) auras.Add(id); else errors.Add($"{where}.aura：要写 WoW 法术 id");
+                    else errors.Add($"{where}.aura：要写 WoW 法术 id，或几个 id 的数组");
+                }
+                rarities[r.Name] = new RarityLook(color.ToUpperInvariant(), Int(r.Value, "rank") ?? 0, auras.Where(a => a > 0).ToArray(), Str(r.Value, "note") ?? "");
+            }
         Mobs = mobs;
         MobFallback = fallback;
+        Rarities = rarities;
     }
 
     private static void LoadClasses(string path, List<string> errors)
@@ -290,6 +313,11 @@ public static class MappingFiles
     /// </summary>
     public static string? HeroWeapon(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips, CharConfig? cfg = null) =>
         HeroLooks(EquipList(equips), cfg).Where(l => l.Key.Equals("mainHand", StringComparison.OrdinalIgnoreCase))
+            .Select(l => Str(l.Look, "weapon")).FirstOrDefault();
+
+    /// <summary>英雄副手拿的武器种类（equipment.json 的 weapon；盾、空手为 null）：有就是双持，挥砍左右手轮流（用户 2026-11-12）。</summary>
+    public static string? HeroOffWeapon(IDictionary<DQQ.Enums.EnumEquipSlot, DQQ.Entities.ItemEntity?>? equips, CharConfig? cfg = null) =>
+        HeroLooks(EquipList(equips), cfg).Where(l => l.Key.Equals("offHand", StringComparison.OrdinalIgnoreCase))
             .Select(l => Str(l.Look, "weapon")).FirstOrDefault();
 
     /// <summary>DQQ 角色 DTO 的装备（<c>Equips</c>）穿到英雄身上：物品名、独特物品名（没有为 null）。</summary>

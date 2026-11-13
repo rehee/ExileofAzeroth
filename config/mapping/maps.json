@@ -23,7 +23,7 @@
     "Map_2_1": "den", "Map_2_2": "den", "Map_2_3": "den", "Map_2_4": "den",
     "PlanMap_1": "plains", "PlanMap_2": "plains", "PlanMap_3": "plains", "PlanMap_4": "plains", "PlanMap_5": "plains",
     "RiftMap_99": "rift", "CowLevel": "rift", "Map_Infinity_Tower": "rift", "Map_GreaterRift": "rift",
-    "Map_TrainingGround_1": "forest", "Tutorial00": "forest", "Tutorial01": "forest",
+    "Map_TrainingGround_1": "forest", "Map_TrainingGround_2": "forest", "Tutorial00": "forest", "Tutorial01": "forest",
     "OfflineCompensation": "forest", "DuelArena": "forest"
   }
 }

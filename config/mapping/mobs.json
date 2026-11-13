@@ -25,6 +25,23 @@
     }
   },
 
+  // 怪物稀有度（EnumMobRarity 名，PLAN-0006 B，用户 2026-11-07 确认三种表现都要）。体型不在这里（由 DQQ 半径决定）。
+  //   color：名字颜色 RRGGBB（仿 PoE：普通白、魔法蓝、精英黄、冠军/守卫橙）
+  //   rank：头像边框，WoW 生物等级（0 无边框，4 稀有＝银龙，1 精英＝金龙，3 首领＝金龙 + 等级显示 ??）
+  //   aura：精英以上身上常驻的光环法术（数字或数组），并进单位的光环栏
+  // 用户 2026-11-12：要克制，不要整团光（之前守卫的能量灌注 10060 胸口光太明显，已去掉）；精英体型已由 DQQ 半径放大，
+  // 只需看得出是精英、首领：像 D3 那样整只怪偏色，或脚下一圈淡淡的。
+  // 偏色用 WoW 光环的染色（SpellVisualKit 的 TINT，乘到模型颜色上，所以只能偏色、不会发光）：28134 Power Surge 是纯染色（淡蓝 #AEAEFF，无粒子）；
+  // 原版没有柔和的金色染色（唯一的 24924 是很重的橙 #FF8000），首领改用脚下的淡金法阵 7069（激怒光环的 RetributionAura 底圈）。
+  // 名字颜色和边框由客户端在 PLAN-0004 显示；光环现在就生效。
+  "rarities": {
+    "Normal":   { "color": "FFFFFF", "rank": 0, "note": "普通：白" },
+    "Magic":    { "color": "8888FF", "rank": 0, "note": "魔法：蓝，无边框，无光环" },
+    "Elite":    { "color": "FFFF77", "rank": 4, "aura": 28134, "note": "精英：黄，银龙；整只怪偏淡蓝（Power Surge 染色）" },
+    "Champion": { "color": "FF9933", "rank": 1, "aura": 28134, "note": "冠军：橙，金龙；偏淡蓝" },
+    "Guardian": { "color": "FF9933", "rank": 1, "aura": 7069,  "note": "守卫（首领）：橙，金龙；脚下淡金法阵" }
+  },
+
   // 每个 DQQ 怪物（EnumMob 名）：display = CreatureDisplayInfo id，或 dress = 上面的外观名；boss 只影响 `.lineup` 显示的大小。
   "mobs": {
     // 螃蟹：海岸蟹，按壳色区分（1.12 只有 4 种壳色，可以重复）

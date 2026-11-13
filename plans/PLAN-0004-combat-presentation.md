@@ -6,7 +6,7 @@
 | 状态 | 待开始 |
 | 负责人 | （待认领） |
 | 创建日期 | 2026-11-07 |
-| 最后更新 | 2026-11-07 |
+| 最后更新 | 2026-11-13 |
 | 完成度 | 0% |
 | 关联设计 | docs/architecture.md §5.4；docs/bridge-protocol.md §3；docs/spike-results.md |
 | 依赖计划 | PLAN-0006（技能、怪物、元素的对应项）。阶段 A、B 可以先做 |
@@ -40,7 +40,8 @@
 - [ ] guid 带生物 entry；桥接应答 `CreatureQuery`（名字取 DQQ `DisplayName`，类型、等级）
 - [ ] 回放期间打开名字显示（`UnitNameNPC` 等 CVar，或桥接指定）
 - [ ] 血条：所有单位头顶显示（用户 2026-11-07 确认），跟随单位、按血量更新
-- [ ] 稀有度：名字颜色或前缀（对应表）
+- [ ] 稀有度：名字颜色与头像边框——数据已由 PLAN-0006 下发（`actors[].nameColor`（RRGGBB）、`rank`（`CreatureQuery` 的生物等级：1 金龙、4 银龙），`mobs.json` 的 `rarities`）；光环已生效。客户端要做：按 `nameColor` 着色名字，`CreatureQuery` 回答带 `rank`
+- [ ] 精英、首领的外发光（用户 2026-11-13 决定做）：像 D3 那样整只怪向外发蓝、发金。WoW 原版的光环染色（SpellVisualKit 的 TINT）是乘到模型颜色上的，只能偏色、不会发光，要在客户端着色器里加一个按单位的发光（边缘光 / 加色），颜色取稀有度（精英蓝、冠军与守卫金），强度要克制（用户 2026-11-12：看得出是精英、首领就行）。现在先用 28134 的淡蓝偏色和 7069 脚下法阵顶替（`mobs.json` 的 `rarities`）
 
 ### D. 施法与投射物
 - [ ] `CastSkill` → `SpellStart`（有施法时间的技能）/ `SpellGo`（瞬发），施法动画、施法特效

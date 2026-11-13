@@ -54,9 +54,38 @@ public sealed class CombatRunner
         var weapons = (request.Creators ?? []).Where(c => c.Id != null)
             .ToDictionary(c => c.Id!.Value.ToString(), c => Visuals.Mapping.MappingFiles.HeroWeapon(c.Equips, configs[c.Id!.Value.ToString()]));
         var enemies = new HashSet<string>();
+        // 双持（用户 2026-11-12）：副手拿着武器的英雄，挥砍左右手轮流；记每个英雄上一次出手的 tick 和手。
+        var dualWield = (request.Creators ?? []).Where(c => c.Id != null
+                && Visuals.Mapping.MappingFiles.HeroOffWeapon(c.Equips, configs[c.Id!.Value.ToString()]) != null)
+            .Select(c => c.Id!.Value.ToString()).ToHashSet();
+        var hands = new Dictionary<string, (int Tick, bool Off)>();
+        int mainSwings = 0, offSwings = 0;
+        // 冲刺（用户 2026-11-12）：英雄上一帧的位置、是否正在冲刺。DQQ 的冲锋、野蛮冲撞、七星闪……是快速位移（每帧 0.13～0.6，普通移动约 0.02），
+        // 施放日志要等撞到才来，所以按位移认冲刺。
+        var lastPos = new Dictionary<string, (double X, double Y)>();
+        // 光环的延续（auras 的 linger）：(单位, 持续效果) → 最后一次在身上的 tick。
+        var auraSeen = new Dictionary<(string, string), int>();
+        var dashing = new HashSet<string>();
+        // 蓄力（chargeUps，用户 2026-11-12）：英雄 → (持续效果 id, 读条的法术)；冲刺开始或持续效果没了就打断读条。
+        var holds = new Dictionary<string, (string DurationId, int Spell)>();
         // 技能 → 最近一次施放者（DQQ 投射物不带施放者：用它判定该技能的演法，例如弓射出的箭不另画）。
         var lastCaster = new Dictionary<string, string>();
         var durationsSeen = new HashSet<string>();
+        // 怪物稀有度（PLAN-0006 B）：帧快照不带，从 DQQ 地图上的活单位按 id 读一次（第一次见到这个怪物时）。
+        Map? liveMap = null;
+        var rarities = new Dictionary<string, string?>();
+        string? RarityOf(TickLogActor a)
+        {
+            if (Visuals.Mapping.MobLooks.RarityOf(a) is { } own) return own;
+            var id = a.Id?.ToString();
+            if (id == null) return null;
+            if (rarities.TryGetValue(id, out var known)) return known;
+            if (liveMap != null)
+                foreach (var (oid, o) in Visuals.Mapping.MobLooks.LiveActors(liveMap))
+                    if (oid != null && !rarities.ContainsKey(oid))
+                        rarities[oid] = Visuals.Mapping.MobLooks.RarityOf(o);
+            return rarities.TryGetValue(id, out known) ? known : rarities[id] = null;
+        }
         var aurasOpened = new HashSet<string>();
         // 英雄的外观按种子里的角色 DTO（录像当时的装备，config/mapping/equipment.json 对应）。
         var heroes = (request.Creators ?? []).Where(c => c.Id != null).ToDictionary(
@@ -87,6 +116,13 @@ public sealed class CombatRunner
                     or EnumLogType.SkillRangeAndTarget or EnumLogType.DamageTaken or EnumLogType.HealingTaken
                     or EnumLogType.Killed or EnumLogType.ActorIsDown or EnumLogType.ActiveAura)) continue;
                 var ev = ToEvent(log, p.Tick, weapons, enemies, configs, lastCaster);
+                if (ev.Kind == "DamageTaken" && ev.Action == "melee" && ev.From is { } attacker && dualWield.Contains(attacker))
+                {
+                    var tick = log.ActionTick ?? p.Tick;
+                    var off = hands.TryGetValue(attacker, out var h) ? h.Tick == tick ? h.Off : !h.Off : false;
+                    hands[attacker] = (tick, off);
+                    if (off) { ev = ev with { OffHand = true }; offSwings++; } else mainSwings++;
+                }
                 // 光环（用户 2026-11-11）：同一个单位的同一个光环只在第一次激活时做施法动作（举手），之后被动激活不做任何动作。
                 if (log.LogType == EnumLogType.ActiveAura && !aurasOpened.Add($"{log.From?.Id}:{log.Skill?.SkillNumber}"))
                     ev = ev with { Action = "none", Spell = 0 };
@@ -99,6 +135,35 @@ public sealed class CombatRunner
                 var tick = t.ActionTick ?? p.Tick;
                 lastTick = Math.Max(lastTick, tick);
                 foreach (var e in t.Enemies ?? []) if (e.Id is { } eid) enemies.Add(eid.ToString());
+                var dash = Visuals.Mapping.SkillLooks.Dash;
+                // 蓄力的持续效果没了（没有冲刺就结束了）：也打断读条。
+                foreach (var (hid, held) in holds.ToArray())
+                {
+                    var hero = (t.Players ?? []).FirstOrDefault(pl => pl.Id?.ToString() == hid);
+                    if (hero != null && !(hero.Durations ?? []).Any(d => (d.Id?.ToString() ?? $"{hero.Id}:{d.DurationNumber}") == held.DurationId))
+                    {
+                        holds.Remove(hid);
+                        events.Add(new CombatEvent($"chargeEnd:{hid}:{tick}", tick, "ChargeUpEnd", hid, hid, null, [], null, null, 0, null, null,
+                            "Physics", 0, false, false, true, null, "chargeUp", held.Spell, 0));
+                    }
+                }
+                foreach (var pl in t.Players ?? [])
+                {
+                    if (pl.Id?.ToString() is not { } pid) continue;
+                    var moved = lastPos.TryGetValue(pid, out var lp) ? Math.Sqrt((pl.X - lp.X) * (pl.X - lp.X) + (pl.Y - lp.Y) * (pl.Y - lp.Y)) : 0;
+                    lastPos[pid] = (pl.X, pl.Y);
+                    if (moved > dash.Speed)
+                    {
+                        // 冲刺开始：蓄力的读条到此为止。
+                        if (holds.Remove(pid, out var held))
+                            events.Add(new CombatEvent($"chargeEnd:{pid}:{tick}", tick, "ChargeUpEnd", pid, pid, null, [], null, null, 0, null, null,
+                                "Physics", 0, false, false, true, null, "chargeUp", held.Spell, 0));
+                        if (dashing.Add(pid))
+                            events.Add(new CombatEvent($"dash:{pid}:{tick}", tick, "DashStart", pid, pid, null, [], null, null, 0, null, null,
+                                "Physics", 0, false, false, true, null, "dash", dash.Spell, 0) { Hit = false });
+                    }
+                    else dashing.Remove(pid);
+                }
                 // 持续效果出现（没有施放日志的技能靠它：战吼、超级霸王电影弹……，docs/skill-presentation.md §2.1.1）。
                 foreach (var a in (t.Players ?? []).Concat(t.Enemies ?? []))
                     foreach (var d in a.Durations ?? [])
@@ -107,13 +172,32 @@ public sealed class CombatRunner
                         var key = d.Id?.ToString() ?? $"{a.Id}:{dn}";
                         if (!durationsSeen.Add(key)) continue;
                         var name = dn.ToString();
+                        double seconds;
+                        try { seconds = Convert.ToDouble(d.TotalSeconds); } catch { seconds = 0; }
+                        if (Visuals.Mapping.SkillLooks.ChargeUp(name, seconds) is { } cup && cup.Hold > 0)
+                        {
+                            // 蓄力开始（技能规则，不是这个持续效果的表现）：英雄读条 Hold 法术，读条的预备动作是蹲着施法；冲刺开始时打断（ChargeUpEnd）。
+                            // 读条时长取技能定义的 CastTime（超级霸王电影弹 1.5 秒；无敌 3 秒比读条长，用户 2026-11-12 看到读条时间不对），
+                            // 没有就用持续效果的时长。持续效果本身照常按 auras 挂特效。
+                            double castTime = 0;
+                            try
+                            {
+                                if (Enum.TryParse<EnumSkillNumber>(cup.Skill, out var csn) && DQQPool.TryGet<SkillProfile, EnumSkillNumber>(csn) is { } cprof)
+                                    castTime = Convert.ToDouble(cprof.CastTime);
+                            }
+                            catch { castTime = 0; }
+                            events.Add(new CombatEvent($"chargeUp:{key}", tick, "ChargeUpStart", a.Id.ToString(), a.Id.ToString(), cup.Skill, [], null, null, 0, null, null,
+                                "Physics", castTime > 0 ? castTime : seconds, false, false, true, name, "chargeUp", cup.Hold, 0));
+                            holds[a.Id.ToString()!] = (key, cup.Hold);
+                        }
                         events.Add(new CombatEvent(key, tick, "DurationStart", null, a.Id.ToString(), null, [], null, null, 0, null, null,
                             "Physics", 0, false, false, true, name, "duration",
-                            Visuals.Mapping.SkillLooks.DurationSpell(name, configs.GetValueOrDefault(a.Id.ToString()!)), 0));
+                            Visuals.Mapping.SkillLooks.DurationSpell(name, configs.GetValueOrDefault(a.Id.ToString()!)), 0)
+                            { Hit = Visuals.Mapping.SkillLooks.DurationHit(name) });
                     }
                 var frame = new CombatFrame(combatId, tick,
-                    (t.Players ?? []).Select(a => WithAuras(ToActor(a, "player"), a, false, configs.GetValueOrDefault(a.Id?.ToString() ?? "")))
-                        .Concat((t.Enemies ?? []).Select(a => WithAuras(ToActor(a, "enemy"), a, true, null))).ToArray(),
+                    (t.Players ?? []).Select(a => WithDash(WithAuras(ToActor(a, "player"), a, false, configs.GetValueOrDefault(a.Id?.ToString() ?? ""), null, Lingering(a, tick, auraSeen)), dashing))
+                        .Concat((t.Enemies ?? []).Select(a => WithAuras(ToActor(a, "enemy"), a, true, null, RarityOf(a), Lingering(a, tick, auraSeen)))).ToArray(),
                     (t.Projects ?? []).Select(a =>
                     {
                         var (spell, spin) = ProjectSpell(a, lastCaster, weapons, enemies, configs);
@@ -139,9 +223,15 @@ public sealed class CombatRunner
         };
 
         using var map = new Map();
+        liveMap = map;
         await map.Initialize(request);
         await map.Play(ct);
         sw.Stop();
+        if (dualWield.Count > 0) Console.WriteLine($"[combat] 双持挥砍：主手 {mainSwings} 下、副手 {offSwings} 下");
+        var enemyRarities = rarities.Where(r => enemies.Contains(r.Key)).ToArray();
+        if (enemyRarities.Length > 0)
+            Console.WriteLine($"[combat] 怪物稀有度：{enemyRarities.Count(r => r.Value != null)}/{enemyRarities.Length} 个读到（" +
+                string.Join("、", enemyRarities.Where(r => r.Value != null).GroupBy(r => r.Value).Select(g => $"{g.Key} {g.Count()}")) + "）");
 
         var result = CombatResultDTO.New(map, request.CreatorId, false);
         var stats = new CombatStats(frames, sw.Elapsed.TotalMilliseconds,
@@ -179,20 +269,53 @@ public sealed class CombatRunner
         return (Visuals.Mapping.SkillLooks.SpellFor("projectile", skill, element, cfg), play.Action is "spin" or "spinChannel");
     }
 
-    /// <summary>单位身上的持续效果 → 常驻的 WoW 光环与范围圈（skills.json auras）。</summary>
-    private static ActorState WithAuras(ActorState s, TickLogActor a, bool enemy, Visuals.Mapping.CharConfig? cfg)
+    /// <summary>冲刺中的英雄挂上冲刺光环（skills.json dash.aura，速度拖尾）。</summary>
+    private static ActorState WithDash(ActorState s, HashSet<string> dashing)
     {
-        var names = (a.Durations ?? []).Select(d => d.DurationNumber?.ToString()).Where(n => n != null).Select(n => n!);
+        var aura = Visuals.Mapping.SkillLooks.Dash.Aura;
+        if (aura <= 0 || !dashing.Contains(s.Id)) return s;
+        return s with { Auras = (s.Auras ?? []).Append(aura).Distinct().Order().ToArray() };
+    }
+
+    /// <summary>单位身上的持续效果 → 常驻的 WoW 光环与范围圈（skills.json auras）。</summary>
+    /// <summary>
+    /// 单位身上的持续效果名，加上刚没了、还在延续时间（auras 的 linger）里的：太短的 buff（超级霸王电影弹的 0.3 秒）特效来不及出现。
+    /// </summary>
+    private static string[] Lingering(TickLogActor a, int tick, Dictionary<(string, string), int> seen)
+    {
+        var id = a.Id?.ToString() ?? "";
+        var now = (a.Durations ?? []).Select(d => d.DurationNumber?.ToString()).Where(n => n != null).Select(n => n!).ToArray();
+        foreach (var n in now) seen[(id, n)] = tick;
+        var extra = seen.Where(p => p.Key.Item1 == id && !now.Contains(p.Key.Item2)
+                && tick - p.Value <= Visuals.Mapping.SkillLooks.AuraLinger(p.Key.Item2) * DQQ.Consts.DQQGeneral.TickPerSecond)
+            .Select(p => p.Key.Item2);
+        return now.Concat(extra).ToArray();
+    }
+
+    private static ActorState WithAuras(ActorState s, TickLogActor a, bool enemy, Visuals.Mapping.CharConfig? cfg, string? rarity = null, string[]? names = null)
+    {
+        names ??= (a.Durations ?? []).Select(d => d.DurationNumber?.ToString()).Where(n => n != null).Select(n => n!).ToArray();
         var (auras, ring) = Visuals.Mapping.SkillLooks.AurasFor(names, enemy, cfg);
+        // 怪物稀有度（PLAN-0006 B）：名字颜色、头像边框随帧下发；精英以上的身上光环并进光环栏。
+        if (enemy && rarity != null)
+        {
+            var look = Visuals.Mapping.MobLooks.Rarity(rarity);
+            s = s with { Rarity = rarity, NameColor = look?.Color, Rank = look?.Rank };
+            if (look is { Auras.Length: > 0 }) auras = auras.Concat(look.Auras).Distinct().Order().ToArray();
+        }
         return auras.Length == 0 && ring == null ? s : s with { Auras = auras, Ring = ring };
     }
 
     private static ActorState ToActor(TickLogActor a, string kind) => new(
         a.Id?.ToString() ?? $"{kind}:{a.X:F2},{a.Y:F2}", kind, a.X, a.Y, a.Radius, a.Angle,
         a.PercentageHP, a.CurrentLife, a.MaxLife, a.IsMoving, a.DisplayName, a.MobNumber?.ToString(),
-        kind == "player" ? Visuals.WowLook.HeroModel : Visuals.WowLook.MobModel(a.MobNumber?.ToString()),
+        // 投射物由客户端的隐形单位画（不用 model），不查怪物表。
+        kind == "player" ? Visuals.WowLook.HeroModel : kind == "project" ? Visuals.Mapping.MobLooks.Fallback.DisplayId.ToString() : Visuals.WowLook.MobModel(MobKey(a)),
         a.TargetX, a.TargetY, kind == "enemy" && Visuals.WowLook.Oversize(a.MobNumber?.ToString()),
-        kind == "enemy" ? Visuals.Mapping.MobLooks.Get(a.MobNumber?.ToString()).Dress : null);
+        kind == "enemy" ? Visuals.Mapping.MobLooks.Get(MobKey(a)).Dress : null);
+
+    /// <summary>对应表的键：怪物编号；敌方单位没有编号时带上显示名，缺失日志里看得出是谁（DQQ 的召唤物等）。</summary>
+    private static string? MobKey(TickLogActor a) => a.MobNumber?.ToString() ?? $"(无编号：{a.DisplayName})";
 
     private static CombatEvent ToEvent(TickLogItem log, int tick, Dictionary<string, string?> weapons, HashSet<string> enemies,
         Dictionary<string, Visuals.Mapping.CharConfig?> configs, Dictionary<string, string> lastCaster)

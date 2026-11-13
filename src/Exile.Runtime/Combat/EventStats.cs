@@ -70,6 +70,7 @@ public static class EventStats
         CombatRunner.RawLog = null;
         md.AppendLine("\n## DQQ 投射物（录像 | 名字 | 半径：帧数、个数）\n");
         foreach (var (k, v) in projects) md.AppendLine($"- {k}：{v.Count} 帧，{v.Ids.Count} 个");
+        md.AppendLine("\n## DQQ 日志种类（EnumLogType 全部）\n\n" + string.Join("、", Enum.GetNames<DQQ.Enums.EnumLogType>()));
         md.AppendLine("\n## DQQ 原始日志（过滤前：种类 | 技能 | 持续效果）\n\n| 种类 | 技能 | 持续效果 | 次数 |\n|---|---|---|---|");
         foreach (var (k, c) in raw) md.AppendLine($"| {k} | {c} |");
         md.AppendLine("\n## 事件种类\n\n| 种类 | 次数 |\n|---|---|");

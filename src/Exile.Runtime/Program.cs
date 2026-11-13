@@ -17,7 +17,8 @@ Console.WriteLine($"[runtime] .NET {Environment.Version}  api={options.ApiBaseUr
 Exile.Runtime.Visuals.Mapping.MappingFiles.Init(options.MappingDir);
 if (options.MappingReport)
 {
-    // 只读枚举与表，不登录 DQQ。仓库里写到 tools/logs/，否则写在 runtime 旁。
+    // 只读枚举、表与 DQQ 的技能定义（要先建 DQQ 对象池），不登录 DQQ。仓库里写到 tools/logs/，否则写在 runtime 旁。
+    await using var dqqForReport = DqqHost.Create(options.ApiBaseUrl);
     var root = options.ConfigPath != null ? Path.GetDirectoryName(Path.GetDirectoryName(options.ConfigPath)) : null;
     var dir = root != null ? Path.Combine(root, "tools", "logs") : AppContext.BaseDirectory;
     Directory.CreateDirectory(dir);
